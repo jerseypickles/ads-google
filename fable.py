@@ -659,13 +659,20 @@ def _live_deep_data() -> dict:
                     funnel[r.segments.conversion_action_name] = (
                         funnel.get(r.segments.conversion_action_name, 0) + r.metrics.all_conversions)
 
-        acciones_aplicadas = []
+        # aplicadas desde el Mac (archivo) Y desde el espejo en la nube (Mongo)
+        acciones_aplicadas, _vistas = [], set()
         alog = BASE / "actions_log.json"
+        fuentes = []
         if alog.exists():
-            acciones_aplicadas = [
-                {"ts": e["ts"], "accion": e["action"], "resultado": e["msg"]}
-                for e in json.loads(alog.read_text(encoding="utf-8")) if e.get("ok")
-            ]
+            fuentes += [e for e in json.loads(alog.read_text(encoding="utf-8")) if e.get("ok")]
+        fuentes += [e for e in mongo.all_docs("actions", limit=200) if e.get("ok")]
+        for e in fuentes:
+            k = e.get("key") or f"{e.get('ts')}|{e.get('action')}"
+            if k in _vistas:
+                continue
+            _vistas.add(k)
+            acciones_aplicadas.append(
+                {"ts": e.get("ts"), "accion": e.get("action"), "resultado": e.get("msg")})
 
         # productos de shopping (7 días): la unidad de decisión del árbol
         productos = {}

@@ -73,8 +73,9 @@ def _guard():
             return app.response_class(
                 "Acceso restringido", 401,
                 {"WWW-Authenticate": 'Basic realm="Jersey Pickles Ads"'})
-    # espejo en la nube: se mira, no se toca — lo que muta se hace desde el Mac
-    if READ_ONLY and request.method == "POST":
+    # espejo en la nube: solo lectura SALVO aplicar acciones de Fable (van directo
+    # a Google Ads y se registran en Mongo — sin tocar el estado del Mac)
+    if READ_ONLY and request.method == "POST" and request.path != "/api/actions/apply":
         return jsonify(ok=False, reason="modo espejo: esta acción se hace desde la app del Mac"), 403
     return None
 _lock = threading.Lock()
@@ -532,7 +533,7 @@ ACTIONS_LOG = BASE / "actions_log.json"
 def _load_actions_log() -> list:
     if ACTIONS_LOG.exists():
         return json.loads(ACTIONS_LOG.read_text(encoding="utf-8"))
-    return []
+    return mongo.all_docs("actions", limit=200)  # espejo en la nube
 
 
 def _action_key(a: dict) -> str:
@@ -553,7 +554,8 @@ def actions_apply():
     a = (request.get_json(silent=True) or {}).get("action") or {}
     key = _action_key(a)
     log = _load_actions_log()
-    if any(e["key"] == key and e.get("ok") for e in log):
+    if any(e["key"] == key and e.get("ok") for e in log) \
+            or mongo.get_doc("actions", {"key": key, "ok": True}):
         return jsonify(ok=True, msg="ya estaba aplicada", key=key)
     result = fable_actions.apply_action(a)
     entry = dict(key=key, action=a, ok=result["ok"], msg=result["msg"],
