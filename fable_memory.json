@@ -1,0 +1,164 @@
+{
+ "lessons": [
+  {
+   "date": "2026-08-02",
+   "lesson": "El cuello de botella carrito→checkout se confirma y empeora con más muestra: 21 add-to-cart → 2 begin checkout (~9.5%) esta semana vs ~12% en la medición anterior — ya no es ruido de día 1 sino un problema estructural de la web que pone techo a cualquier escalado de presupuesto."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El dashboard ahora tiene stock real por variante desde Shopify Admin API (.shopify_token). Productos sin stock no pueden anunciarse en Shopping — verificar stock antes de proponer campañas o keywords de un producto específico."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "La concentración de valor en Pickled Vegetables — Discovery ya no es ruido de una venta: 2 de 2 conversiones y el 100% del valor de la cuenta ($64.36) salen del mismo grupo, y la keyword PHRASE 'pickled vegetables' pasó a ROAS 1.86 (>break-even) con $34.68 gastados. Es el único motor probado de la cuenta y el candidato natural a escalar cuando termine el learning."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "La inversión de roles control/descubrimiento se profundiza: la EXACT 'Control' cerró la ventana con $62.25, CTR 3.2% y $0 de valor mientras la PHRASE convierte con CTR 5.2% — en esta cuenta la campaña de descubrimiento es la que rinde, y el reparto de presupuesto 54/46 a favor de la EXACT debe reevaluarse en el paquete del día 7 con los datos completos."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "Los términos transaccionales clican al 100% pagando el tope: 'where to get fermented pickles' hizo 2 clics en 2 impresiones a ~$1.97/clic — la intención 'where to get/buy/best' existe y paga premium; merece keywords y anuncios propios en la promoción del día 7, no solo captura pasiva vía PHRASE."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "En esta cuenta la exactitud sale cara sin rendir: la EXACT paga CPC medio $1.75 (87% del tope, con muchos clics a $1.86-2.00) frente a $1.28 de la PHRASE por el mismo universo de términos, y convierte peor — el tope $2 no solo apaga el clúster kosher por impresiones, también fija el precio de los mejores clics de la EXACT; al reevaluar presupuestos y topes en el día 7, la prima de la EXACT debe justificarse con datos o recortarse."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El auditor marcó en el plan de Shopping: Estructura: correcta. Tres niveles ($0.90/$0.55/$0.30) son la granularidad máxima legible con ~50 clics/día; pujas monotónicas y por debajo del techo teórico, coherente con que el ROAS PMax auto-atribuido solo vale como ranking relativo. La puja Estrellas $0.90 (70% del CPC real de la PHRASE $1.28) con recorrido a $1.50 es defendible."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El auditor marcó en el plan de Shopping: Presupuesto: la aritmética cuadra ($25 / CPC ~$0.50 ≈ 50 clics/día, ~350 en 7 días), pero la proyección de 4-7 ventas es optimista en su límite inferior: con conversión del 1% son ~3.3 ventas, por debajo del umbral de ≥5 que la cuenta exige para juzgar ROAS. La semana 1 puede cerrar sin lectura ROAS válida."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El auditor marcó en el plan de Shopping: NEGATIVA 'free' (broad, una palabra): bloquea búsquedas de compra legítimas como 'gluten free pickles', 'sugar free pickles' o 'pickles free shipping'. Es la única negativa de la lista que viola el criterio de no bloquear búsquedas genéricas de compra. El resto de la lista está bien: informacionales y marcas retail presentes, brine/homemade deliberadamente fuera (correcto según lecciones), multi-palabra prevista en PHRASE y con fecha de aplicación."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El motor Pickled Vegetables — Discovery se consolida con la tercera conversión: 3/3 conversiones y 100% del valor de la cuenta, y la keyword PHRASE 'pickled vegetables' pasa de ROAS 1.86 a 2.73 en dos mediciones — la trayectoria es ascendente y sostenida, no una venta suelta; es el candidato validado a escalar en cuanto termine el learning."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El funnel afina el diagnóstico del cuello de botella: checkout→compra es 100% (3/3) mientras carrito→checkout sigue en ~12% (25→3) — el problema no es el proceso de pago sino la decisión de entrar a él (probable fricción de costes de envío o carrito), y ahí debe apuntar cualquier arreglo web antes de escalar presupuesto."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "Build-your-Box (9777050190099) y Build Your Juice Box (10258522177811) NO pueden anunciarse en Shopping mientras el link del feed apunte a /products/...: la página de producto vende variantes crudas ('half_2') sin elegir contenido — la compra real está en /pages/build-you-box. Reincorporarlos solo cuando AdNabu use ese link."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El campo estrategia_puja de un borrador puede no reflejar lo que el plan aprobó: el borrador de Shopping se llama 'Manual CPC' pero carga 'Maximizar clics con tope $2' en vez de los niveles $0.90/$0.55/$0.30 del plan auditado — antes de aceptar cualquier borrador hay que verificar que la configuración cargada coincida con el plan, porque la aprobación del plan no garantiza la fidelidad de la carga."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El clúster tomatoes crece día a día sin cosechar: de $18.45/15 clics a $22.34/21 clics en la ventana ayer/hoy (~18% del gasto de la ventana), con la marca 'jersey pickles (hot) tomatoes' clicando al 40-55% de CTR — cada día de aprendizaje que pasa sin grupo propio de marca+tomatoes es el coste de oportunidad más caro de la cuenta y refuerza su lugar como prioridad nº1 del paquete del día 7."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "CRÍTICO Merchant: el feed de AdNabu dejó de llegar al Merchant 5080357407 — solo hay 15 productos de rastreo web (IDs numéricos, Not approved por availability faltante). La campaña Shopping apunta a ids shopify_ZZ_ y no sirve nada hasta que el usuario re-sincronice AdNabu. Al volver el feed: VERIFICAR el formato de item_id (ZZ vs US) antes de asumir que los árboles matchean, y confirmar productos aprobados en shopping_product."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "Las listas de negativas divergen por campaña y eso produce fugas reales: 'morgan's', 'canned' y 'refrigerator' solo son negativas en Shopping, y por Search se colaron 'morgan's certified yes ma am mix' ($1.77) y 'canned dill pickles' ($1.89) ayer/hoy — toda negativa debe aplicarse a las 3 campañas simultáneamente, no solo donde se detectó la fuga."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "Primera conversión fuera del motor Pickled Vegetables: el head term 'pickles' en PHRASE (Core Pickles — Discovery) convirtió con ROAS 9.18 ($52.17 de valor por $5.68 de gasto) — el valor de la cuenta deja de ser 100% monogrupo y aparece un segundo candidato barato a escalar tras el learning."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "La verificación borrador↔plan debe ocurrir ANTES de aceptar, no después: el Shopping pasó a LIVE conservando la puja equivocada ('Maximizar clics tope $2' en vez de Manual CPC $0.90/$0.55/$0.30) y solo el feed caído impide que el error gaste dinero — una vez LIVE, la discrepancia ya está en producción."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El valor medio por conversión real es ~$38 (4 conv, $151.71), muy por debajo del ticket $66 asumido en los planes — los umbrales de CPA aceptable deben recalcularse sobre AOV real (~$12.6 para ROAS 3), no sobre el ticket teórico."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "La sangría de la EXACT está concentrada, no repartida: el grupo Pickled Vegetables (EXACT) acumula $38.62 y 23 clics con 0 conversiones — 59% del gasto de la campaña — mientras el mismo clúster en PHRASE hace ROAS 2.48; la inversión de roles control/descubrimiento es específica del clúster estrella, lo que refuerza que las promociones a EXACT deben salir de variantes probadas y no del término genérico."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El ratio carrito→checkout oscila entre mediciones (9.5% → 13.8%) con n≈30 — con muestras así no se puede sentenciar tendencia de mejora o empeoramiento del funnel; solo el nivel (~10-14%, estructuralmente bajo) es conclusión firme."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El ROAS del motor 'pickled vegetables' medido en ventana completa de 7 días es 2.04 ($99.54/$48.86), por debajo de las mediciones puntuales previas (2.73): las lecturas puntuales sobreestiman la trayectoria porque el coste se acumula más rápido que el valor entre conversiones — las decisiones de escalado del día 7 deben tomarse sobre la ventana completa, no sobre el último punto."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "La ventana completa de 7 días cierra el veredicto de la inversión de roles: EXACT terminó con $88.92, 58 clics y ROAS 0.00 mientras la PHRASE hizo ROAS 1.95 ($151.71, 4 conv) — ya no es tendencia parcial sino resultado de semana entera; la redistribución de presupuesto del día 7 tiene por fin base estadística de ventana completa, con la cuenta agregada en ROAS 0.91 (bajo break-even) precisamente por el lastre de la EXACT."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El funnel a ventana completa fija el cuello en su punto más bajo: 283.5 page views → 45 carritos (15.9%, sano) → 4 checkouts (8.9%, mínimo del rango 8.9-13.8% observado) → 4 compras (100%) — con n=45 carritos la lectura ya no es oscilación de muestra pequeña: la pérdida está exclusivamente en la decisión de entrar al checkout, y cualquier arreglo web debe apuntar ahí antes de escalar gasto."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "La demanda de tomatoes se parte en dos intenciones distintas: además de la marca ('jersey pickles (hot) tomatoes', $18.67 y CTR 40-55%), los términos genéricos 'pickled green tomatoes' + 'pickled tomatoes' suman $9.98 y 11 clics ayer/hoy sin existir keyword alguna de tomatoes — el paquete del día 7 necesita DOS grupos separados (marca y genérico), porque mezclarlos contaminaría CPCs y lectura de ROAS."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "Los informes no reconcilian en el clúster de marca: los términos 'jersey pickles (hot) tomatoes' suman 20 clics solo ayer/hoy, pero el único keyword capaz de contenerlos ('pickles' PHRASE) registra 8 clics en 7 días — antes de decidir sobre el 'segundo motor' (Core Discovery ROAS 7.48) hay que auditar en Google Ads la atribución término→keyword, porque una conversión de marca disfrazada de genérico cambiaría el plan de escalado."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "Los campos de estado del gestor no bastan para fechar el learning: las campañas reportan dias_activa=0 y en_aprendizaje=true pese a acumular una ventana completa de 7 días de métricas — antes de ejecutar el paquete del día 7 hay que verificar la fecha real de inicio en Google Ads, porque si el gestor nunca actualiza dias_activa la regla cero bloquearía las acciones indefinidamente."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "Las negativas del gestor pueden no estar realmente aplicadas en Google Ads: 'quick pickled red onions' gastó $1.98 ayer/hoy pese a que 'quick pickled' [BROAD] figura como negativa activa en las 3 campañas — antes de fiar el control de calidad del tráfico a negativas_activas_por_campana hay que auditar en la plataforma que cada negativa existe y desde cuándo, porque una lista 'activa' en el gestor no garantiza bloqueo efectivo."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El feed propio (merchant_feed.py → Merchant API, fuente 10697079283) publica Build-your-Box y Juice Box con link al builder /pages/build-you-box: BYB volvió al grupo Estrellas ($0.90) y Juice Box quedó libre en el grupo escoba. El feed sube availability real de Shopify."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "Los términos transaccionales explícitos del clúster fermented ('where to buy/get fermented pickles') clican a CTR extremo (4 clics en 5 impresiones, $5.46) mientras el genérico 'fermented pickles' acumula $20.44 en 7 días sin convertir — la intención de compra existe y se autoidentifica en la consulta; en el paquete del día 7 estos long-tails 'where to buy' son mejores candidatos a keyword EXACT propia que seguir pujando solo por el genérico."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El ROAS del motor 'pickled vegetables' decae monótonamente entre mediciones (2.73 → 2.04 → 1.89) porque el coste se acumula sin nueva conversión: a día 7 debe tratarse como motor marginal rozando break-even que necesita CPC más barato o mejor conversión web, no como estrella a escalar por defecto."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El clúster Bread & Butter quema en ambas campañas ($21.44 en 7 días, 0 conversiones) y su tráfico real es DIY que esquiva las negativas actuales: 'old fashioned bread and butter pickles' ($3.98) y 'grandma's old fashioned refrigerator…' ($1.62) no contienen 'recipe', así que 'old fashioned recipe' [BROAD] no los bloquea — el paquete del día 7 debe evaluar 'old fashioned' y 'grandma's' como negativas (verificando antes que no choquen con nombres de producto propios)."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "La inversión de roles EXACT/PHRASE ya no es absoluta: la primera conversión de la EXACT llegó por el grupo Fermented ($43.15, ROAS 2.52), no por el clúster estrella — el rescate de la EXACT el día 7 debe construirse sobre long-tails transaccionales del clúster fermented, no sobre revivir Pickled Vegetables EXACT (que sigue en $51.96 y 0 conv)."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El árbol de prioridades de Shopping falla su primera prueba: Estrellas (Tomates & Packs) quemó $24.59 con 76 clics y 0 conv mientras la única conversión salió del grupo escoba Resto a $0.38 — la asunción de qué productos son 'estrella' no está validada por datos y el árbol debe revisarse con conversiones reales el día 7."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "Aparece demanda de horseradish sin keyword propia y con CTR extremo (3 clics en 10 impresiones, $3.83 entre 'horseradish pickles' y 'horseradish bread and butter pickles') — verificar si existe producto horseradish en el catálogo: si existe es candidato a keyword el día 7; si no, candidato a negativa en las 3 campañas."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El 'motor' Pickled Vegetables es en realidad un solo keyword: todo el valor del clúster sale de 'pickled vegetables' [PHRASE] ($99.54/$57.16, ROAS 1.74); las variantes específicas (pickled red onions $16.29, jalapenos $13.30, watermelon rind $9.63, garlic $8.53, okra $2.11) suman ~$50 en 7 días con 0 conversiones en ambos match types — presupuesto y promociones del clúster deben concentrarse en el genérico, no repartirse entre variantes."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El contador dias_activa del gestor avanza (0→1 entre auditorías) pero no corresponde a la ventana real de ~7 días de métricas acumuladas: tomado al pie de la letra, la regla cero bloquearía el paquete del día 7 casi una semana de más — la fecha de inicio del aprendizaje debe leerse siempre de Google Ads, nunca del gestor."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "Con n=92 carritos (el doble de la medición anterior) la conversión carrito→checkout queda clavada en 8.7% mientras página→carrito mejora a 18.5% y checkout→compra baja a 75% (6/8): el cuello es estructural y exclusivo de la decisión de entrar al checkout — mejorar el tráfico de arriba solo multiplica la fuga si no se arregla ese paso."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "Las listas de negativas no están sincronizadas entre campañas: 'canned', 'refrigerator' y 'morgan's' existen solo en Shopping, y por esa asimetría términos DIY/irrelevantes ('canned dill pickles' $1.89, 'refrigerator pickles' $3.99) se fugan por Search — al sincronizar, la negativa 'refrigerator' no choca con la keyword activa 'refrigerated pickles' porque las negativas no expanden variantes cercanas."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "La marca pura 'jersey pickles' genera demanda propia barata (215 impr, 15 clics, $3.44, CPC ~$0.23 solo ayer/hoy) que hoy se captura de rebote por matcheos accidentales — merece campaña o grupo de marca dedicado para proteger ese tráfico, leer su ROAS limpio y dejar de contaminar la atribución de los grupos genéricos."
+  }
+ ]
+}

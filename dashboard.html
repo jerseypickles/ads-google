@@ -1,0 +1,557 @@
+<meta charset="utf-8">
+<title>Jersey Pickles · Inteligencia de Keywords</title>
+<style>
+  :root {
+    --page: #f6f6f1;
+    --card: #fcfcfb;
+    --ink: #14150f;
+    --ink-2: #53554a;
+    --muted: #8a8b80;
+    --hairline: #e3e3d8;
+    --grid-line: #ebebe1;
+    --accent: #3d6b2a;
+    --accent-ink: #33591f;
+    --accent-wash: rgba(93, 140, 60, 0.10);
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+    --good: #0ca30c; --good-text: #006300;
+    --warning: #fab219; --critical: #d03b3b;
+    --shadow: 0 1px 2px rgba(20,21,15,.04), 0 4px 14px rgba(20,21,15,.05);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      --page: #0d0e0b;
+      --card: #191a15;
+      --ink: #f3f3ea;
+      --ink-2: #c2c3b6;
+      --muted: #8a8b80;
+      --hairline: #2b2c26;
+      --grid-line: #232419;
+      --accent: #8cbf68;
+      --accent-ink: #a5d284;
+      --accent-wash: rgba(140, 191, 104, 0.12);
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+      --good-text: #0ca30c;
+      --shadow: none;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page: #0d0e0b;
+    --card: #191a15;
+    --ink: #f3f3ea;
+    --ink-2: #c2c3b6;
+    --muted: #8a8b80;
+    --hairline: #2b2c26;
+    --grid-line: #232419;
+    --accent: #8cbf68;
+    --accent-ink: #a5d284;
+    --accent-wash: rgba(140, 191, 104, 0.12);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --good-text: #0ca30c;
+    --shadow: none;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --page: #f6f6f1;
+    --card: #fcfcfb;
+    --ink: #14150f;
+    --ink-2: #53554a;
+    --muted: #8a8b80;
+    --hairline: #e3e3d8;
+    --grid-line: #ebebe1;
+    --accent: #3d6b2a;
+    --accent-ink: #33591f;
+    --accent-wash: rgba(93, 140, 60, 0.10);
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+    --good-text: #006300;
+    --shadow: 0 1px 2px rgba(20,21,15,.04), 0 4px 14px rgba(20,21,15,.05);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 64px; }
+
+  /* ---------- masthead ---------- */
+  .masthead { padding: 44px 0 26px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .eyebrow {
+    font-size: 11.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent-ink); margin: 0 0 10px;
+  }
+  h1 {
+    font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+    font-size: clamp(26px, 4vw, 36px); font-weight: 600; letter-spacing: -0.015em;
+    margin: 0; text-wrap: balance;
+  }
+  .masthead .meta { color: var(--ink-2); font-size: 13.5px; margin-top: 8px; max-width: 62ch; }
+  .meta-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--hairline); color: var(--ink-2); background: var(--card); white-space: nowrap;
+  }
+
+  /* ---------- KPI band ---------- */
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin: 10px 0 26px; }
+  .kpi {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 10px;
+    padding: 14px 16px 12px; box-shadow: var(--shadow);
+  }
+  .kpi .label { font-size: 11.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+  .kpi .value { font-size: 26px; font-weight: 650; letter-spacing: -0.01em; margin-top: 2px; }
+  .kpi .sub { font-size: 12px; color: var(--ink-2); margin-top: 1px; }
+  .kpi.hero { border-color: color-mix(in srgb, var(--accent) 35%, var(--hairline)); background: linear-gradient(180deg, var(--accent-wash), transparent 70%), var(--card); }
+
+  /* ---------- grid & cards ---------- */
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 18px; }
+  .card {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 12px;
+    padding: 20px 22px 22px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .span-12 { grid-column: span 12; }
+  .span-7 { grid-column: span 7; }
+  .span-6 { grid-column: span 6; }
+  .span-5 { grid-column: span 5; }
+  .card h2 {
+    font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+    font-size: 17px; font-weight: 600; margin: 0;
+  }
+  .card .note { font-size: 13px; color: var(--ink-2); margin: 3px 0 16px; max-width: 70ch; }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+
+  /* ---------- campaign bar list ---------- */
+  .barlist { display: flex; flex-direction: column; gap: 13px; }
+  .barrow { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 12px; align-items: center; }
+  .barrow .name { font-size: 13px; font-weight: 550; line-height: 1.25; }
+  .barrow .name small { display: block; font-weight: 400; color: var(--muted); font-size: 11.5px; }
+  .bartrack { position: relative; height: 30px; display: flex; align-items: center; }
+  .bar {
+    height: 22px; border-radius: 0 4px 4px 0; background: var(--s1); min-width: 3px;
+    transition: opacity .15s;
+  }
+  .barrow:hover .bar { opacity: .82; }
+  .barval { font-size: 13px; font-weight: 600; margin-left: 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .barval small { font-weight: 450; color: var(--ink-2); }
+  .cpa-chip {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600;
+    padding: 1px 8px; border-radius: 999px; margin-left: 8px; white-space: nowrap;
+  }
+  .cpa-good { color: var(--good-text); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  .cpa-bad  { color: var(--critical);  background: color-mix(in srgb, var(--critical) 10%, transparent); }
+  .cpa-none { color: var(--muted); background: color-mix(in srgb, var(--muted) 12%, transparent); }
+
+  /* ---------- charts ---------- */
+  .chartbox { position: relative; }
+  svg { display: block; width: 100%; height: auto; }
+  .axis-label { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .grid-l { stroke: var(--grid-line); stroke-width: 1; }
+  .baseline { stroke: var(--hairline); stroke-width: 1; }
+  .tooltip {
+    position: absolute; pointer-events: none; z-index: 5; min-width: 130px;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 8px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.13); padding: 8px 11px; font-size: 12.5px;
+    opacity: 0; transition: opacity .1s;
+  }
+  .tooltip.on { opacity: 1; }
+  .tooltip .t-title { font-weight: 600; margin-bottom: 4px; }
+  .tooltip .t-row { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+  .tooltip .t-row .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 6px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 10px; font-size: 12.5px; color: var(--ink-2); }
+  .legend .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+  .mini-title { font-size: 12px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 14px 0 4px; }
+
+  /* ---------- keyword table ---------- */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
+  th {
+    font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+    cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--card);
+  }
+  th:hover { color: var(--ink); }
+  th .arrow { font-size: 10px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .volcell { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .volbar-track { width: 110px; height: 14px; display: flex; align-items: center; }
+  .volbar { height: 10px; background: var(--s1); border-radius: 0 3px 3px 0; min-width: 2px; }
+  .comp { font-size: 11.5px; font-weight: 600; padding: 1px 9px; border-radius: 999px; }
+  .comp-LOW    { color: var(--good-text); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  .comp-MEDIUM { color: #8a6400; background: color-mix(in srgb, var(--warning) 18%, transparent); }
+  :root[data-theme="dark"] .comp-MEDIUM { color: #fab219; }
+  @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .comp-MEDIUM { color: #fab219; } }
+  .comp-HIGH   { color: var(--critical); background: color-mix(in srgb, var(--critical) 10%, transparent); }
+  tr:hover td { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+
+  /* ---------- callouts, negatives ---------- */
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--accent-wash);
+    border-radius: 0 8px 8px 0; padding: 10px 14px; font-size: 13.5px; margin-top: 16px;
+  }
+  .callout.warn { border-left-color: var(--critical); background: color-mix(in srgb, var(--critical) 7%, transparent); }
+  .neg-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .neg {
+    font-size: 12.5px; padding: 4px 11px; border-radius: 999px;
+    border: 1px dashed color-mix(in srgb, var(--critical) 45%, var(--hairline));
+    color: var(--ink-2); text-decoration: line-through;
+    text-decoration-color: color-mix(in srgb, var(--critical) 60%, transparent);
+  }
+  .why { font-size: 12px; color: var(--muted); margin-top: 12px; }
+
+  .btn {
+    font-size: 12px; font-weight: 600; color: var(--accent-ink); background: none;
+    border: 1px solid var(--hairline); border-radius: 7px; padding: 4px 11px; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:focus-visible, th:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .datatable-alt { display: none; margin-top: 12px; }
+  .datatable-alt.on { display: block; }
+
+  footer { margin-top: 34px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  @media (max-width: 900px) {
+    .kpis { grid-template-columns: repeat(3, 1fr); }
+    .span-7, .span-5, .span-6 { grid-column: span 12; }
+  }
+  @media (max-width: 560px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .barrow { grid-template-columns: 1fr; gap: 2px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">Google Ads · Cuenta 488-882-3590 · EE.UU. · Inglés</p>
+      <h1>Jersey Pickles — Inteligencia de keywords</h1>
+      <p class="meta">Investigación validada con la API oficial de Google Ads. Rendimiento histórico de campañas (últimos 12 meses) y oportunidades de búsqueda para la próxima temporada.</p>
+    </div>
+    <div class="meta-chips">
+      <span class="chip">Datos: 1 ago 2026</span>
+      <span class="chip">API v25 · 4 fuentes</span>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis" aria-label="Indicadores clave"></section>
+
+  <div class="grid">
+
+    <section class="card span-7">
+      <div class="card-head"><h2>Campañas: lo que ya funcionó</h2></div>
+      <p class="note">Inversión y conversiones por campaña, últimos 12 meses. Las campañas están pausadas — esto es el historial que justifica reactivar.</p>
+      <div class="barlist" id="camp-bars"></div>
+      <div class="callout warn" id="camp-callout"></div>
+    </section>
+
+    <section class="card span-5">
+      <div class="card-head"><h2>Actividad mensual</h2></div>
+      <p class="note">Meses sin barra = campañas pausadas.</p>
+      <p class="mini-title">Inversión (USD)</p>
+      <div class="chartbox" id="trend-cost"></div>
+      <p class="mini-title">Conversiones</p>
+      <div class="chartbox" id="trend-conv"></div>
+    </section>
+
+    <section class="card span-12">
+      <div class="card-head">
+        <h2>Oportunidades de keywords — top 30 por volumen</h2>
+        <span class="chip">clic en una columna para ordenar</span>
+      </div>
+      <p class="note">Candidatas del autocompletado de Google validadas con métricas reales de la API (12 meses, EE.UU., inglés). La chispa muestra la evolución mensual del volumen — busca las que suben ahora.</p>
+      <div class="tablewrap">
+        <table id="kwtable" aria-label="Tabla de keywords">
+          <thead><tr>
+            <th data-k="kw">Keyword <span class="arrow"></span></th>
+            <th data-k="vol" class="num">Búsquedas/mes <span class="arrow"></span></th>
+            <th data-k="comp">Competencia <span class="arrow"></span></th>
+            <th data-k="low" class="num">Puja baja <span class="arrow"></span></th>
+            <th data-k="high" class="num">Puja alta <span class="arrow"></span></th>
+            <th>Últimos 12 meses</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card span-7">
+      <div class="card-head">
+        <h2>Estacionalidad — el pico es ahora</h2>
+        <button class="btn" id="season-toggle" aria-expanded="false">Ver tabla</button>
+      </div>
+      <p class="note">Volumen mensual de búsqueda de 4 keywords clave. La banda verde marca ago–sep, el pico histórico de la categoría.</p>
+      <div class="legend" id="season-legend"></div>
+      <div class="chartbox" id="season-chart"></div>
+      <div class="datatable-alt tablewrap" id="season-table"></div>
+    </section>
+
+    <section class="card span-5">
+      <div class="card-head"><h2>Limpieza recomendada</h2></div>
+      <p class="note">Negativas a excluir en la campaña Search — intención equivocada detectada en la investigación.</p>
+      <div class="neg-chips" id="negs"></div>
+      <p class="why">Motivos: cómics y bares homónimos, marcas de terceros, recetas caseras (DIY), tendencias virales ajenas al producto y geografías fuera de mercado.</p>
+      <div class="callout" id="plastic-note"></div>
+    </section>
+
+  </div>
+
+  <footer>
+    <span>Fuente: Google Ads API (KeywordPlanIdeaService, search_term_view, campaign) · generado 1 ago 2026</span>
+    <span>Jersey Pickles · jerseypickles.com</span>
+  </footer>
+</div>
+
+<script>
+const DATA = {"campaigns": [{"name": "Purchases / Jersey Pickles / Perfomance Max #3", "impr": 592133, "clicks": 12388, "cost": 6975.78, "conv": 1305.07, "cpa": 5.35}, {"name": "Purchases / Jersey Pickles / Perfomance Max", "impr": 798138, "clicks": 25263, "cost": 6355.32, "conv": 3368.79, "cpa": 1.89}, {"name": "Purchases / Jersey Pickles / Perfomance Max #2", "impr": 157076, "clicks": 6511, "cost": 1966.17, "conv": 927.07, "cpa": 2.12}, {"name": "Sales-Performance Max-10 / Jersey Plastic / Purchase", "impr": 4018, "clicks": 909, "cost": 491.62, "conv": 138.0, "cpa": 3.56}, {"name": "Sales-Search-6 / Jersey Plastic / Search", "impr": 394, "clicks": 58, "cost": 75.37, "conv": 0.0, "cpa": null}, {"name": "Purchases / Jersey Pickles / Perfomance Max / CANADA", "impr": 7691, "clicks": 71, "cost": 23.1, "conv": 0.0, "cpa": null}], "monthly": [{"month": "2025-08", "cost": 8237.03, "conv": 881.8, "clicks": 11258}, {"month": "2025-09", "cost": 3466.64, "conv": 1104.0, "clicks": 9748}, {"month": "2025-10", "cost": 1915.43, "conv": 1039.4, "clicks": 8035}, {"month": "2026-03", "cost": 1557.29, "conv": 1328.2, "clicks": 7739}, {"month": "2026-04", "cost": 710.97, "conv": 1385.5, "clicks": 8420}], "keywords": [{"kw": "pickles", "vol": 301000, "comp": "HIGH", "low": 0.19, "high": 1.84, "series": [["2025-07", 246000], ["2025-08", 301000], ["2025-09", 301000], ["2025-10", 301000], ["2025-11", 301000], ["2025-12", 301000], ["2026-01", 301000], ["2026-02", 301000], ["2026-03", 301000], ["2026-04", 301000], ["2026-05", 301000], ["2026-06", 301000]]}, {"kw": "pickled red onions", "vol": 90500, "comp": "MEDIUM", "low": 0.02, "high": 0.04, "series": [["2025-07", 110000], ["2025-08", 90500], ["2025-09", 74000], ["2025-10", 74000], ["2025-11", 74000], ["2025-12", 74000], ["2026-01", 90500], ["2026-02", 74000], ["2026-03", 90500], ["2026-04", 90500], ["2026-05", 90500], ["2026-06", 90500]]}, {"kw": "pickles cucumber", "vol": 74000, "comp": "LOW", "low": 0.02, "high": 0.59, "series": [["2025-07", 135000], ["2025-08", 90500], ["2025-09", 74000], ["2025-10", 40500], ["2025-11", 33100], ["2025-12", 33100], ["2026-01", 60500], ["2026-02", 60500], ["2026-03", 90500], ["2026-04", 90500], ["2026-05", 110000], ["2026-06", 110000]]}, {"kw": "dill pickles", "vol": 49500, "comp": "HIGH", "low": 0.02, "high": 0.69, "series": [["2025-07", 60500], ["2025-08", 60500], ["2025-09", 49500], ["2025-10", 49500], ["2025-11", 49500], ["2025-12", 49500], ["2026-01", 49500], ["2026-02", 49500], ["2026-03", 49500], ["2026-04", 49500], ["2026-05", 49500], ["2026-06", 40500]]}, {"kw": "pickled eggs", "vol": 49500, "comp": "HIGH", "low": 0.02, "high": 0.67, "series": [["2025-07", 40500], ["2025-08", 40500], ["2025-09", 40500], ["2025-10", 40500], ["2025-11", 40500], ["2025-12", 40500], ["2026-01", 60500], ["2026-02", 40500], ["2026-03", 49500], ["2026-04", 49500], ["2026-05", 49500], ["2026-06", 40500]]}, {"kw": "pickled jalapenos", "vol": 49500, "comp": "HIGH", "low": 0.02, "high": 0.65, "series": [["2025-07", 60500], ["2025-08", 74000], ["2025-09", 74000], ["2025-10", 60500], ["2025-11", 40500], ["2025-12", 33100], ["2026-01", 33100], ["2026-02", 33100], ["2026-03", 33100], ["2026-04", 33100], ["2026-05", 40500], ["2026-06", 49500]]}, {"kw": "pickles refrigerated", "vol": 33100, "comp": "LOW", "low": 0.01, "high": 0.38, "series": [["2025-07", 110000], ["2025-08", 110000], ["2025-09", 49500], ["2025-10", 22200], ["2025-11", 18100], ["2025-12", 6600], ["2026-01", 9900], ["2026-02", 14800], ["2026-03", 18100], ["2026-04", 22200], ["2026-05", 22200], ["2026-06", 33100]]}, {"kw": "bread and butter pickles", "vol": 27100, "comp": "HIGH", "low": 0.01, "high": 0.45, "series": [["2025-07", 49500], ["2025-08", 40500], ["2025-09", 33100], ["2025-10", 22200], ["2025-11", 22200], ["2025-12", 18100], ["2026-01", 22200], ["2026-02", 22200], ["2026-03", 22200], ["2026-04", 22200], ["2026-05", 27100], ["2026-06", 33100]]}, {"kw": "fermented pickles", "vol": 27100, "comp": "HIGH", "low": 0.05, "high": 1.43, "series": [["2025-07", 33100], ["2025-08", 40500], ["2025-09", 27100], ["2025-10", 22200], ["2025-11", 22200], ["2025-12", 22200], ["2026-01", 40500], ["2026-02", 27100], ["2026-03", 27100], ["2026-04", 22200], ["2026-05", 27100], ["2026-06", 40500]]}, {"kw": "pickles juice", "vol": 27100, "comp": "HIGH", "low": 0.06, "high": 0.76, "series": [["2025-07", 40500], ["2025-08", 33100], ["2025-09", 33100], ["2025-10", 27100], ["2025-11", 22200], ["2025-12", 22200], ["2026-01", 27100], ["2026-02", 22200], ["2026-03", 27100], ["2026-04", 27100], ["2026-05", 33100], ["2026-06", 40500]]}, {"kw": "kosher dill pickles", "vol": 22200, "comp": "HIGH", "low": 0.04, "high": 1.09, "series": [["2025-07", 27100], ["2025-08", 27100], ["2025-09", 27100], ["2025-10", 18100], ["2025-11", 18100], ["2025-12", 22200], ["2026-01", 27100], ["2026-02", 22200], ["2026-03", 27100], ["2026-04", 18100], ["2026-05", 27100], ["2026-06", 27100]]}, {"kw": "pickled garlic", "vol": 22200, "comp": "HIGH", "low": 0.15, "high": 0.73, "series": [["2025-07", 22200], ["2025-08", 22200], ["2025-09", 22200], ["2025-10", 22200], ["2025-11", 22200], ["2025-12", 22200], ["2026-01", 27100], ["2026-02", 18100], ["2026-03", 27100], ["2026-04", 22200], ["2026-05", 22200], ["2026-06", 22200]]}, {"kw": "pickles kosher", "vol": 22200, "comp": "HIGH", "low": 0.04, "high": 1.09, "series": [["2025-07", 27100], ["2025-08", 27100], ["2025-09", 27100], ["2025-10", 18100], ["2025-11", 18100], ["2025-12", 22200], ["2026-01", 27100], ["2026-02", 22200], ["2026-03", 27100], ["2026-04", 18100], ["2026-05", 27100], ["2026-06", 27100]]}, {"kw": "pickles kosher dill", "vol": 22200, "comp": "HIGH", "low": 0.04, "high": 1.09, "series": [["2025-07", 27100], ["2025-08", 27100], ["2025-09", 27100], ["2025-10", 18100], ["2025-11", 18100], ["2025-12", 22200], ["2026-01", 27100], ["2026-02", 22200], ["2026-03", 27100], ["2026-04", 18100], ["2026-05", 27100], ["2026-06", 27100]]}, {"kw": "dill pickles brands", "vol": 18100, "comp": "HIGH", "low": 0.16, "high": 1.36, "series": [["2025-07", 18100], ["2025-08", 18100], ["2025-09", 14800], ["2025-10", 14800], ["2025-11", 14800], ["2025-12", 14800], ["2026-01", 18100], ["2026-02", 18100], ["2026-03", 18100], ["2026-04", 22200], ["2026-05", 18100], ["2026-06", 22200]]}, {"kw": "pickles brands", "vol": 18100, "comp": "HIGH", "low": 0.16, "high": 1.36, "series": [["2025-07", 18100], ["2025-08", 18100], ["2025-09", 14800], ["2025-10", 14800], ["2025-11", 14800], ["2025-12", 14800], ["2026-01", 18100], ["2026-02", 18100], ["2026-03", 18100], ["2026-04", 22200], ["2026-05", 18100], ["2026-06", 22200]]}, {"kw": "pickled okra", "vol": 14800, "comp": "HIGH", "low": 0.1, "high": 0.72, "series": [["2025-07", 22200], ["2025-08", 22200], ["2025-09", 18100], ["2025-10", 14800], ["2025-11", 12100], ["2025-12", 12100], ["2026-01", 12100], ["2026-02", 12100], ["2026-03", 14800], ["2026-04", 14800], ["2026-05", 14800], ["2026-06", 14800]]}, {"kw": "pickles chips", "vol": 14800, "comp": "HIGH", "low": 0.31, "high": 1.53, "series": [["2025-07", 14800], ["2025-08", 14800], ["2025-09", 14800], ["2025-10", 14800], ["2025-11", 14800], ["2025-12", 14800], ["2026-01", 18100], ["2026-02", 14800], ["2026-03", 14800], ["2026-04", 14800], ["2026-05", 18100], ["2026-06", 14800]]}, {"kw": "pickles deli", "vol": 14800, "comp": "LOW", "low": 0.49, "high": 2.17, "series": [["2025-07", 18100], ["2025-08", 18100], ["2025-09", 18100], ["2025-10", 14800], ["2025-11", 14800], ["2025-12", 12100], ["2026-01", 12100], ["2026-02", 12100], ["2026-03", 18100], ["2026-04", 18100], ["2026-05", 18100], ["2026-06", 18100]]}, {"kw": "pickles juice benefits", "vol": 14800, "comp": "LOW", "low": 0.03, "high": 0.06, "series": [["2025-07", 18100], ["2025-08", 14800], ["2025-09", 14800], ["2025-10", 12100], ["2025-11", 12100], ["2025-12", 9900], ["2026-01", 14800], ["2026-02", 12100], ["2026-03", 14800], ["2026-04", 12100], ["2026-05", 12100], ["2026-06", 14800]]}, {"kw": "pickles watermelon rind", "vol": 14800, "comp": "LOW", "low": 0.04, "high": 0.39, "series": [["2025-07", 40500], ["2025-08", 27100], ["2025-09", 18100], ["2025-10", 8100], ["2025-11", 8100], ["2025-12", 5400], ["2026-01", 5400], ["2026-02", 5400], ["2026-03", 6600], ["2026-04", 8100], ["2026-05", 18100], ["2026-06", 27100]]}, {"kw": "dill pickles chips", "vol": 12100, "comp": "HIGH", "low": 0.18, "high": 1.19, "series": [["2025-07", 12100], ["2025-08", 9900], ["2025-09", 9900], ["2025-10", 12100], ["2025-11", 9900], ["2025-12", 12100], ["2026-01", 12100], ["2026-02", 9900], ["2026-03", 12100], ["2026-04", 12100], ["2026-05", 12100], ["2026-06", 12100]]}, {"kw": "pickled vegetables", "vol": 12100, "comp": "HIGH", "low": 0.07, "high": 0.85, "series": [["2025-07", 12100], ["2025-08", 12100], ["2025-09", 9900], ["2025-10", 12100], ["2025-11", 9900], ["2025-12", 9900], ["2026-01", 12100], ["2026-02", 9900], ["2026-03", 12100], ["2026-04", 12100], ["2026-05", 12100], ["2026-06", 14800]]}, {"kw": "pickles on pizza", "vol": 12100, "comp": "LOW", "low": 0.47, "high": 2.24, "series": [["2025-07", 12100], ["2025-08", 14800], ["2025-09", 14800], ["2025-10", 14800], ["2025-11", 9900], ["2025-12", 8100], ["2026-01", 9900], ["2026-02", 9900], ["2026-03", 9900], ["2026-04", 9900], ["2026-05", 9900], ["2026-06", 9900]]}, {"kw": "pickles spears", "vol": 12100, "comp": "HIGH", "low": 0.17, "high": 1.12, "series": [["2025-07", 12100], ["2025-08", 12100], ["2025-09", 9900], ["2025-10", 12100], ["2025-11", 9900], ["2025-12", 9900], ["2026-01", 12100], ["2026-02", 12100], ["2026-03", 12100], ["2026-04", 12100], ["2026-05", 12100], ["2026-06", 12100]]}, {"kw": "pickles near me", "vol": 9900, "comp": "MEDIUM", "low": 0.64, "high": 5.93, "series": [["2025-07", 9900], ["2025-08", 9900], ["2025-09", 8100], ["2025-10", 8100], ["2025-11", 8100], ["2025-12", 8100], ["2026-01", 8100], ["2026-02", 8100], ["2026-03", 9900], ["2026-04", 9900], ["2026-05", 12100], ["2026-06", 12100]]}, {"kw": "pickles relish", "vol": 9900, "comp": "HIGH", "low": 0.11, "high": 0.91, "series": [["2025-07", 12100], ["2025-08", 12100], ["2025-09", 9900], ["2025-10", 9900], ["2025-11", 22200], ["2025-12", 9900], ["2026-01", 8100], ["2026-02", 6600], ["2026-03", 9900], ["2026-04", 8100], ["2026-05", 8100], ["2026-06", 9900]]}, {"kw": "spicy pickles", "vol": 9900, "comp": "HIGH", "low": 0.2, "high": 1.18, "series": [["2025-07", 9900], ["2025-08", 9900], ["2025-09", 8100], ["2025-10", 8100], ["2025-11", 8100], ["2025-12", 9900], ["2026-01", 9900], ["2026-02", 8100], ["2026-03", 9900], ["2026-04", 9900], ["2026-05", 9900], ["2026-06", 9900]]}, {"kw": "homemade pickles", "vol": 8100, "comp": "LOW", "low": 0.02, "high": 0.28, "series": [["2025-07", 22200], ["2025-08", 18100], ["2025-09", 8100], ["2025-10", 5400], ["2025-11", 4400], ["2025-12", 4400], ["2026-01", 5400], ["2026-02", 4400], ["2026-03", 5400], ["2026-04", 6600], ["2026-05", 8100], ["2026-06", 12100]]}, {"kw": "jersey pickles", "vol": 8100, "comp": "MEDIUM", "low": 0.26, "high": 0.87, "series": [["2025-07", 4400], ["2025-08", 4400], ["2025-09", 6600], ["2025-10", 9900], ["2025-11", 9900], ["2025-12", 8100], ["2026-01", 12100], ["2026-02", 12100], ["2026-03", 9900], ["2026-04", 9900], ["2026-05", 6600], ["2026-06", 6600]]}], "seasonal": [{"kw": "pickles cucumber", "vol": 74000, "comp": "LOW", "low": 0.02, "high": 0.59, "series": [["2025-07", 135000], ["2025-08", 90500], ["2025-09", 74000], ["2025-10", 40500], ["2025-11", 33100], ["2025-12", 33100], ["2026-01", 60500], ["2026-02", 60500], ["2026-03", 90500], ["2026-04", 90500], ["2026-05", 110000], ["2026-06", 110000]]}, {"kw": "pickles refrigerated", "vol": 33100, "comp": "LOW", "low": 0.01, "high": 0.38, "series": [["2025-07", 110000], ["2025-08", 110000], ["2025-09", 49500], ["2025-10", 22200], ["2025-11", 18100], ["2025-12", 6600], ["2026-01", 9900], ["2026-02", 14800], ["2026-03", 18100], ["2026-04", 22200], ["2026-05", 22200], ["2026-06", 33100]]}, {"kw": "bread and butter pickles", "vol": 27100, "comp": "HIGH", "low": 0.01, "high": 0.45, "series": [["2025-07", 49500], ["2025-08", 40500], ["2025-09", 33100], ["2025-10", 22200], ["2025-11", 22200], ["2025-12", 18100], ["2026-01", 22200], ["2026-02", 22200], ["2026-03", 22200], ["2026-04", 22200], ["2026-05", 27100], ["2026-06", 33100]]}, {"kw": "fermented pickles", "vol": 27100, "comp": "HIGH", "low": 0.05, "high": 1.43, "series": [["2025-07", 33100], ["2025-08", 40500], ["2025-09", 27100], ["2025-10", 22200], ["2025-11", 22200], ["2025-12", 22200], ["2026-01", 40500], ["2026-02", 27100], ["2026-03", 27100], ["2026-04", 22200], ["2026-05", 27100], ["2026-06", 40500]]}], "search_terms": [{"term": "wholesale soup containers", "impr": 1, "clicks": 2, "cost": 16.23, "conv": 0.0}, {"term": "fillmore containers", "impr": 2, "clicks": 1, "cost": 9.9, "conv": 0.0}, {"term": "storage containers plastic", "impr": 10, "clicks": 1, "cost": 6.49, "conv": 0.0}, {"term": "storage containers", "impr": 18, "clicks": 4, "cost": 2.69, "conv": 0.0}, {"term": "storage containers for", "impr": 1, "clicks": 1, "cost": 2.69, "conv": 0.0}, {"term": "plastic products", "impr": 52, "clicks": 9, "cost": 1.9, "conv": 0.0}, {"term": "storage containers for sale", "impr": 2, "clicks": 1, "cost": 1.85, "conv": 0.0}, {"term": "plastic bottles", "impr": 5, "clicks": 2, "cost": 1.66, "conv": 0.0}, {"term": "food container", "impr": 7, "clicks": 4, "cost": 1.53, "conv": 0.0}, {"term": "medical plastic packaging", "impr": 1, "clicks": 1, "cost": 1.41, "conv": 0.0}], "kpi": {"cost": 15887.36, "conv": 5738.9, "clicks": 45200, "cpa": 2.77, "ideas": 582, "validated": 336}};
+
+const $ = (s, el=document) => el.querySelector(s);
+const fmt = n => n.toLocaleString('en-US');
+const fmt$ = n => '$' + n.toLocaleString('en-US', {maximumFractionDigits: n < 10 ? 2 : 0});
+const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const mlabel = ym => { const [y,m] = ym.split('-'); return MES[+m-1] + ' ' + y.slice(2); };
+const SERIES = [
+  getComputedStyle(document.documentElement).getPropertyValue('--s1').trim(),
+  getComputedStyle(document.documentElement).getPropertyValue('--s2').trim(),
+  getComputedStyle(document.documentElement).getPropertyValue('--s3').trim(),
+  getComputedStyle(document.documentElement).getPropertyValue('--s4').trim(),
+];
+
+/* ---------- KPIs ---------- */
+const K = DATA.kpi;
+const kpis = [
+  {label: 'Inversión 12 m', value: fmt$(K.cost), sub: 'campañas históricas', hero: true},
+  {label: 'Conversiones', value: fmt(Math.round(K.conv)), sub: 'compras registradas', hero: true},
+  {label: 'Coste / conversión', value: fmt$(K.cpa), sub: 'promedio de cuenta', hero: true},
+  {label: 'Clics', value: fmt(K.clicks), sub: 'últimos 12 meses'},
+  {label: 'Ideas de keywords', value: fmt(K.ideas), sub: 'generadas con la API'},
+  {label: 'Candidatas validadas', value: fmt(K.validated), sub: 'con métricas reales'},
+];
+$('#kpis').innerHTML = kpis.map(k =>
+  `<div class="kpi${k.hero ? ' hero' : ''}"><div class="label">${k.label}</div><div class="value">${k.value}</div><div class="sub">${k.sub}</div></div>`
+).join('');
+
+/* ---------- campañas ---------- */
+const camps = DATA.campaigns;
+const maxCost = Math.max(...camps.map(c => c.cost));
+const shortName = n => n
+  .replace('Purchases / Jersey Pickles / ', '')
+  .replace('Perfomance Max', 'Performance Max')
+  .replace('Sales-Performance Max-10 / Jersey Plastic / Purchase', 'Jersey Plastic · PMax')
+  .replace('Sales-Search-6 / Jersey Plastic / Search', 'Jersey Plastic · Search');
+$('#camp-bars').innerHTML = camps.map(c => {
+  const cpaChip = c.cpa == null
+    ? `<span class="cpa-chip cpa-bad">✕ 0 conv</span>`
+    : c.cpa <= 3
+      ? `<span class="cpa-chip cpa-good">✓ ${fmt$(c.cpa)}/conv</span>`
+      : `<span class="cpa-chip cpa-none">${fmt$(c.cpa)}/conv</span>`;
+  return `<div class="barrow" title="${c.name}">
+    <div class="name">${shortName(c.name)}<small>${fmt(c.impr)} impresiones · ${fmt(c.clicks)} clics</small></div>
+    <div class="bartrack">
+      <div class="bar" style="width:${(c.cost/maxCost*100).toFixed(1)}%"></div>
+      <span class="barval">${fmt$(c.cost)} <small>· ${fmt(Math.round(c.conv))} conv</small></span>${cpaChip}
+    </div>
+  </div>`;
+}).join('');
+const plasticSearch = camps.find(c => c.name.includes('Search-6'));
+$('#camp-callout').innerHTML = `<b>Atención:</b> la campaña Search de Jersey Plastic gastó ${fmt$(plasticSearch.cost)} sin ninguna conversión — candidata a quedarse apagada. Las PMax de pickles, en cambio, convirtieron a ${fmt$(2.77)} de media.`;
+
+/* ---------- tendencia mensual ---------- */
+function monthRange(from, to) {
+  const out = []; let [y, m] = from.split('-').map(Number);
+  const [ty, tm] = to.split('-').map(Number);
+  while (y < ty || (y === ty && m <= tm)) {
+    out.push(`${y}-${String(m).padStart(2,'0')}`);
+    m++; if (m > 12) { m = 1; y++; }
+  }
+  return out;
+}
+const trendMonths = monthRange('2025-08', '2026-07');
+const byMonth = Object.fromEntries(DATA.monthly.map(m => [m.month, m]));
+
+function barChart(elId, months, getVal, fmtVal, color) {
+  const W = 460, H = 130, pad = {l: 6, r: 6, t: 16, b: 20};
+  const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+  const vals = months.map(getVal);
+  const max = Math.max(...vals, 1);
+  const bw = iw / months.length;
+  let bars = '', labels = '';
+  months.forEach((m, i) => {
+    const v = vals[i];
+    const h = Math.round(v / max * ih);
+    const x = pad.l + i * bw + 2;
+    const y = pad.t + ih - h;
+    bars += `<rect data-i="${i}" x="${x.toFixed(1)}" y="${y}" width="${(bw-4).toFixed(1)}" height="${Math.max(h, v > 0 ? 3 : 0)}" rx="3" fill="${color}"></rect>`;
+    if (i % 2 === 0) labels += `<text class="axis-label" x="${(x + bw/2 - 2).toFixed(1)}" y="${H-5}" text-anchor="middle">${mlabel(m)}</text>`;
+  });
+  const box = $(elId);
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfica de barras mensual">
+    <line class="baseline" x1="${pad.l}" y1="${pad.t+ih+.5}" x2="${W-pad.r}" y2="${pad.t+ih+.5}"></line>${bars}${labels}</svg>
+    <div class="tooltip" role="status"></div>`;
+  const tip = $('.tooltip', box);
+  box.addEventListener('mousemove', e => {
+    const r = e.target.closest('rect[data-i]');
+    if (!r) { tip.classList.remove('on'); return; }
+    const i = +r.dataset.i;
+    tip.innerHTML = `<div class="t-title">${mlabel(months[i])}</div><div class="t-row"><span>${fmtVal(vals[i])}</span></div>`;
+    const bb = box.getBoundingClientRect();
+    tip.style.left = Math.min(e.clientX - bb.x + 12, bb.width - 140) + 'px';
+    tip.style.top = (e.clientY - bb.y - 40) + 'px';
+    tip.classList.add('on');
+  });
+  box.addEventListener('mouseleave', () => tip.classList.remove('on'));
+}
+barChart('#trend-cost', trendMonths, m => byMonth[m] ? byMonth[m].cost : 0, v => fmt$(v), SERIES[0]);
+barChart('#trend-conv', trendMonths, m => byMonth[m] ? byMonth[m].conv : 0, v => fmt(Math.round(v)) + ' conv', SERIES[2]);
+
+/* ---------- tabla de keywords ---------- */
+const kws = DATA.keywords;
+const maxVol = Math.max(...kws.map(k => k.vol));
+const COMP_ES = {LOW: 'Baja', MEDIUM: 'Media', HIGH: 'Alta'};
+function spark(series, color) {
+  const W = 120, H = 26, vals = series.map(s => s[1]);
+  const mx = Math.max(...vals, 1);
+  const pts = vals.map((v, i) => `${(i/(vals.length-1)*(W-6)+3).toFixed(1)},${(H-3-(v/mx*(H-8))).toFixed(1)}`);
+  const last = pts[pts.length-1].split(',');
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
+    <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+    <circle cx="${last[0]}" cy="${last[1]}" r="3" fill="${color}"></circle></svg>`;
+}
+let sortK = 'vol', sortDir = -1;
+function renderTable() {
+  const sorted = [...kws].sort((a, b) => {
+    const va = a[sortK], vb = b[sortK];
+    return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sortDir;
+  });
+  $('#kwtable tbody').innerHTML = sorted.map(k => `<tr>
+    <td><b>${k.kw}</b></td>
+    <td class="num"><span class="volcell"><span class="volbar-track"><span class="volbar" style="width:${(k.vol/maxVol*100).toFixed(1)}%"></span></span>${fmt(k.vol)}</span></td>
+    <td><span class="comp comp-${k.comp}">${COMP_ES[k.comp] || k.comp}</span></td>
+    <td class="num">$${k.low.toFixed(2)}</td>
+    <td class="num">$${k.high.toFixed(2)}</td>
+    <td>${spark(k.series, 'var(--s1)')}</td>
+  </tr>`).join('');
+  document.querySelectorAll('#kwtable th').forEach(th => {
+    const a = $('.arrow', th);
+    if (a) a.textContent = th.dataset.k === sortK ? (sortDir < 0 ? '▼' : '▲') : '';
+  });
+}
+document.querySelectorAll('#kwtable th[data-k]').forEach(th => {
+  th.tabIndex = 0;
+  const go = () => {
+    if (sortK === th.dataset.k) sortDir *= -1;
+    else { sortK = th.dataset.k; sortDir = th.dataset.k === 'kw' ? 1 : -1; }
+    renderTable();
+  };
+  th.addEventListener('click', go);
+  th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+});
+renderTable();
+
+/* ---------- estacionalidad ---------- */
+const SEASON_ORDER = ['pickles cucumber', 'pickles refrigerated', 'bread and butter pickles', 'fermented pickles'];
+const seasonal = SEASON_ORDER.map(n => DATA.seasonal.find(s => s.kw === n)).filter(Boolean);
+const smonths = seasonal[0].series.map(s => s[0]);
+
+$('#season-legend').innerHTML = seasonal.map((s, i) =>
+  `<span><span class="dot" style="background:${SERIES[i]}"></span>${s.kw}</span>`).join('');
+
+(function seasonChart() {
+  const W = 640, H = 300, pad = {l: 46, r: 130, t: 14, b: 26};
+  const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+  const allVals = seasonal.flatMap(s => s.series.map(p => p[1]));
+  const max = Math.max(...allVals) * 1.08;
+  const x = i => pad.l + i / (smonths.length - 1) * iw;
+  const y = v => pad.t + ih - v / max * ih;
+
+  // banda ago–sep 2025 (pico de temporada)
+  const iAug = smonths.indexOf('2025-08'), iSep = smonths.indexOf('2025-09');
+  let band = '';
+  if (iAug >= 0 && iSep >= 0) {
+    band = `<rect x="${x(iAug) - iw/(smonths.length-1)/2}" y="${pad.t}" width="${x(iSep)-x(iAug) + iw/(smonths.length-1)}" height="${ih}" fill="var(--accent-wash)"></rect>
+    <text class="axis-label" x="${(x(iAug)+x(iSep))/2}" y="${pad.t+12}" text-anchor="middle" fill="var(--accent-ink)" style="fill:var(--accent-ink);font-weight:600">pico</text>`;
+  }
+
+  let gridl = '', ylabels = '';
+  for (let g = 0; g <= 3; g++) {
+    const v = max / 3 * g, yy = y(v);
+    gridl += `<line class="grid-l" x1="${pad.l}" y1="${yy.toFixed(1)}" x2="${W-pad.r}" y2="${yy.toFixed(1)}"></line>`;
+    ylabels += `<text class="axis-label" x="${pad.l-7}" y="${(yy+3.5).toFixed(1)}" text-anchor="end">${v >= 1000 ? Math.round(v/1000) + 'k' : Math.round(v)}</text>`;
+  }
+  let xlabels = '';
+  smonths.forEach((m, i) => {
+    if (i % 2 === 0) xlabels += `<text class="axis-label" x="${x(i).toFixed(1)}" y="${H-6}" text-anchor="middle">${mlabel(m)}</text>`;
+  });
+
+  let lines = '';
+  const labelSpots = [];
+  seasonal.forEach((s, si) => {
+    const pts = s.series.map((p, i) => `${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');
+    lines += `<polyline points="${pts}" fill="none" stroke="${SERIES[si]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>`;
+    const lastV = s.series[s.series.length-1][1];
+    lines += `<circle cx="${x(smonths.length-1).toFixed(1)}" cy="${y(lastV).toFixed(1)}" r="3.5" fill="${SERIES[si]}" stroke="var(--card)" stroke-width="2"></circle>`;
+    const short = {'pickles cucumber':'cucumber','pickles refrigerated':'refrigerated','bread and butter pickles':'bread & butter','fermented pickles':'fermented'}[s.kw] || s.kw;
+    labelSpots.push({y: y(lastV) + 4, color: SERIES[si], text: short});
+  });
+  // separar etiquetas finales que colisionan (mín. 14px entre sí)
+  labelSpots.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labelSpots.length; i++) {
+    if (labelSpots[i].y - labelSpots[i-1].y < 14) labelSpots[i].y = labelSpots[i-1].y + 14;
+  }
+  const endlbl = labelSpots.map(l =>
+    `<text x="${W-pad.r+8}" y="${l.y.toFixed(1)}" font-size="11.5" font-weight="600" fill="${l.color}">${l.text}</text>`).join('');
+
+  const box = $('#season-chart');
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Volumen mensual de búsqueda por keyword">
+    ${band}${gridl}<line class="baseline" x1="${pad.l}" y1="${pad.t+ih+.5}" x2="${W-pad.r}" y2="${pad.t+ih+.5}"></line>
+    ${ylabels}${xlabels}${lines}${endlbl}
+    <line id="xhair" x1="0" y1="${pad.t}" x2="0" y2="${pad.t+ih}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" opacity="0"></line>
+    <rect id="hover-capture" x="${pad.l}" y="${pad.t}" width="${iw}" height="${ih}" fill="transparent"></rect></svg>
+    <div class="tooltip" role="status"></div>`;
+
+  const tip = $('.tooltip', box), xhair = $('#xhair', box), svg = $('svg', box);
+  $('#hover-capture', box).addEventListener('mousemove', e => {
+    const bb = svg.getBoundingClientRect();
+    const relX = (e.clientX - bb.x) / bb.width * W;
+    const i = Math.max(0, Math.min(smonths.length - 1, Math.round((relX - pad.l) / iw * (smonths.length - 1))));
+    xhair.setAttribute('x1', x(i)); xhair.setAttribute('x2', x(i)); xhair.setAttribute('opacity', '1');
+    tip.innerHTML = `<div class="t-title">${mlabel(smonths[i])}</div>` + seasonal.map((s, si) =>
+      `<div class="t-row"><span><span class="dot" style="background:${SERIES[si]}"></span>${s.kw.replace(' pickles','').replace('pickles ','')}</span><b>${fmt(s.series[i][1])}</b></div>`).join('');
+    const boxbb = box.getBoundingClientRect();
+    const px = e.clientX - boxbb.x;
+    tip.style.left = Math.min(px + 14, boxbb.width - 190) + 'px';
+    tip.style.top = '30px';
+    tip.classList.add('on');
+  });
+  $('#hover-capture', box).addEventListener('mouseleave', () => { tip.classList.remove('on'); xhair.setAttribute('opacity', '0'); });
+
+  // tabla accesible
+  $('#season-table').innerHTML = `<table><thead><tr><th>Mes</th>${seasonal.map(s => `<th class="num">${s.kw}</th>`).join('')}</tr></thead>
+    <tbody>${smonths.map((m, i) => `<tr><td>${mlabel(m)}</td>${seasonal.map(s => `<td class="num">${fmt(s.series[i][1])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+})();
+$('#season-toggle').addEventListener('click', () => {
+  const t = $('#season-table');
+  t.classList.toggle('on');
+  const on = t.classList.contains('on');
+  $('#season-toggle').textContent = on ? 'Ocultar tabla' : 'Ver tabla';
+  $('#season-toggle').setAttribute('aria-expanded', on);
+});
+
+/* ---------- negativas ---------- */
+const NEGS = ['pickles comic', 'pickles pub', 'rugrats', 'claussen', "grillo's", 'vlasic', 'chamoy pickle',
+  'jellycat', 'picklesburgh', 'kool aid', 'fried pickles recipe', 'pickling cucumbers',
+  'how to make pickles', 'canning', 'walmart', 'india', 'uk', 'australia', 'in spanish'];
+$('#negs').innerHTML = NEGS.map(n => `<span class="neg">${n}</span>`).join('');
+const st = DATA.search_terms;
+const stCost = st.reduce((a, s) => a + s.cost, 0);
+$('#plastic-note').innerHTML = `<b>Hallazgo:</b> los términos de búsqueda históricos provienen solo de la campaña Search de <i>Jersey Plastic</i> (envases) — p. ej. "${st[0].term}", "${st[1].term}". Las campañas de pickles eran Performance Max, que no expone términos. Una campaña <b>Search de pickles</b> nos daría esa mina de datos.`;
+</script>

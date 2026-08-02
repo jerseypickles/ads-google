@@ -1,0 +1,29 @@
+# ── SECRETOS: JAMÁS al repo ──────────────────────────────
+google-ads.yaml
+.merchant_token.json
+.shopify_token
+.mongo_uri
+*.token
+*.secret
+
+# ── entorno / runtime ────────────────────────────────────
+.venv/
+__pycache__/
+*.pyc
+server.log
+nohup.out
+.playwright-mcp/
+.DS_Store
+
+# ── datos regenerables (los produce la propia app) ───────
+report_campanas_*.csv
+search_terms_*.csv
+historical_metrics_*.csv
+keyword_ideas_*.csv
+seed_candidates_*.csv
+merchant_images.json
+.merchant_feed_synced
+*.jpg
+*.png
+report_keywords_*.csv
+sync.log

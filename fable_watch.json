@@ -1,0 +1,87 @@
+{
+ "resumen": "Día 2 de learning con la compuerta activa: solo observación, todo lo accionable se empaqueta para el día 7. La foto confirma al clúster Pickled Vegetables como motor también en la demanda externa (watermelon rind +206%, tomatoes +30%, y los términos reales repiten tomatoes/green tomatoes/horseradish), mientras 'pickles refrigerated' (+81%, LOW) valida justo nuestro diferencial de envío fresco. Sombra persistente: el clúster kosher/deli/cucumber sigue a oscuras bajo el tope de $2 aunque 'pickles cucumber' (110k, +47%, LOW) y 'pickles deli' (+28%) están subiendo sin nosotros en subasta.",
+ "subiendo": [
+  {
+   "kw": "pickles watermelon rind",
+   "nota": "+206% con competencia LOW y puja $0.04-0.39, y los términos reales ya le dieron 4 clics — la keyword estacional del verano y ya la tenemos en el plan."
+  },
+  {
+   "kw": "pickles refrigerated",
+   "nota": "+81% y LOW: la demanda gira hacia el formato fresco refrigerado, exactamente nuestra propuesta diferencial (ojo: distinta de 'refrigerator pickles', que es método DIY)."
+  },
+  {
+   "kw": "pickles cucumber",
+   "nota": "110k de volumen, +47%, LOW y puja desde $0.02 — y es parte del clúster con cero impresiones por el tope de $2: el mercado crece donde estamos apagados."
+  },
+  {
+   "kw": "pickles near me",
+   "nota": "+31% y NO está en el plan; intención local con CPC alto ($0.64-5.93), relevante si empujamos recogida/envío regional NJ."
+  },
+  {
+   "kw": "pickles tomatoes",
+   "nota": "+30% y NO está en el plan pese a que vendemos el producto y los términos reales (pickled tomatoes, green tomatoes, marca+tomatoes) ya gastan sin keyword propia."
+  }
+ ],
+ "bajando": [
+  {
+   "kw": "pickled garlic",
+   "nota": "-8% de tendencia y ayer 1 clic en 59 impresiones (CTR ~1.7%): volumen alto pero el anuncio no engancha en ese término."
+  },
+  {
+   "kw": "pickles juice benefits",
+   "nota": "-6% e intención puramente informativa; no perder foco ahí aunque 'pickles juice' a secas suba +32%."
+  },
+  {
+   "kw": "pickled eggs",
+   "nota": "-7% con competencia HIGH; sin señal de compra en los términos reales, prioridad baja."
+  },
+  {
+   "kw": "dill pickles",
+   "nota": "-6% en el head term del clúster dill; ayer 1 clic en 36 impresiones — el genérico se enfría mientras las variantes específicas suben."
+  },
+  {
+   "kw": "fermented pickles",
+   "nota": "-5% de tendencia, pero matiz: 'where to get fermented pickles' convirtió 2/2 impresiones en clics — baja el volumen, no la intención de compra."
+  }
+ ],
+ "nuevas_laterales": [
+  {
+   "kw": "buy grillo's pickles online",
+   "nota": "Grillo's es el competidor artesanal refrigerado más parecido a nosotros y no está en el radar de conquista (solo Claussen/Vlasic/Mt Olive) — validar volumen y CPC de su marca."
+  },
+  {
+   "kw": "half sour pickles",
+   "nota": "el autocompletado la destapa vía recetas y Grillo's: categoría clásica de deli NJ/NY que encaja con 'pickles deli' (LOW, +28%) — validar el head sin 'recipe'."
+  },
+  {
+   "kw": "buy pickles online",
+   "nota": "las variantes por país (india/uk/canada/australia) se ignoran por no enviar allí, pero el patrón sin geo es modificador de adquisición — la intención más fuerte según la lección de 'where to get'."
+  },
+  {
+   "kw": "gourmet pickles",
+   "nota": "aparece con geos y 'recipe' en autocompletado; el head US encaja con el posicionamiento small-batch artesanal — validar volumen antes de descartarla."
+  },
+  {
+   "kw": "pickled quail eggs",
+   "nota": "lateral curiosa (recipe + walmart en autocompletado): ignorar salvo que entre al catálogo; las variantes 'walmart' y 'recipe' son intención de otro retailer y DIY."
+  }
+ ],
+ "semillas_nuevas": [
+  "half sour pickles / sour pickles (categoría deli NJ-NY que el autocompletado ya insinúa y no seguimos)",
+  "pickle brine / pickleback / pickle juice for cocktails (con 'pickles juice' +32%, explorar el ángulo producto-brine: cócteles y recovery deportivo)",
+  "buy pickles online / pickles mail order / pickle delivery (patrón de adquisición e-commerce sin geo, hermano de 'where to get')",
+  "grillo's pickles y marcas refrigeradas artesanales (extender el radar de conquista al segmento fresh/refrigerated, donde 'pickles refrigerated' sube +81%)"
+ ],
+ "acciones": [
+  "COMPUERTA DE LEARNING (día 2): cero cambios en campañas — nada de negativas, pujas ni presupuesto; todo lo siguiente es investigación fuera de las campañas o anotación para el paquete del día 7.",
+  "Validar en el Keyword Planner (solo investigación, sin tocar la cuenta): 'pickles tomatoes' (+30%) y 'pickles near me' (+31%) SUBEN y NO están en el plan, junto con 'pickled green tomatoes', 'horseradish pickles', 'half sour pickles' y 'buy pickles online' — dejarlas listas para promover a EXACT al cerrar el learning.",
+  "Identificar qué acción de conversión está registrando el conv=1.0 de la PHRASE en Google Ads (¿compra real o evento intermedio?): es prerequisito de cualquier lectura de CPA y no toca la configuración de campañas.",
+  "Revisar en la web la fricción carrito→checkout (coste de envío refrigerado visible en carrito): con solo ~12% de paso a checkout, más tráfico no arregla ese salto y es trabajo fuera de Google Ads.",
+  "Seguir la vigilancia diaria en modo observación: confirmar si el clúster kosher/spears/chips/deli/cucumber suma un tercer día a cero impresiones (refuerza el caso de tope propio post-learning) y clasificar los términos de búsqueda del día en los tres cubos (negativa/ignorar/promover) SIN aplicarlos hasta el día 7."
+ ],
+ "_meta": {
+  "model": "claude-fable-5",
+  "engine": "claude-code-cli",
+  "generated_at": "2026-08-02T00:52:17"
+ }
+}

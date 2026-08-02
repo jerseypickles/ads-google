@@ -1,0 +1,2141 @@
+<meta charset="utf-8">
+<title>Jersey Pickles · Inteligencia de Keywords</title>
+<style>
+  :root {
+    --page: #f6f6f1;
+    --card: #fcfcfb;
+    --ink: #14150f;
+    --ink-2: #53554a;
+    --muted: #8a8b80;
+    --hairline: #e3e3d8;
+    --grid-line: #ebebe1;
+    --accent: #3d6b2a;
+    --accent-ink: #33591f;
+    --accent-wash: rgba(93, 140, 60, 0.10);
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+    --good: #0ca30c; --good-text: #006300;
+    --warning: #fab219; --critical: #d03b3b;
+    --shadow: 0 1px 2px rgba(20,21,15,.04), 0 4px 14px rgba(20,21,15,.05);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      --page: #0d0e0b;
+      --card: #191a15;
+      --ink: #f3f3ea;
+      --ink-2: #c2c3b6;
+      --muted: #8a8b80;
+      --hairline: #2b2c26;
+      --grid-line: #232419;
+      --accent: #8cbf68;
+      --accent-ink: #a5d284;
+      --accent-wash: rgba(140, 191, 104, 0.12);
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+      --good-text: #0ca30c;
+      --shadow: none;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page: #0d0e0b;
+    --card: #191a15;
+    --ink: #f3f3ea;
+    --ink-2: #c2c3b6;
+    --muted: #8a8b80;
+    --hairline: #2b2c26;
+    --grid-line: #232419;
+    --accent: #8cbf68;
+    --accent-ink: #a5d284;
+    --accent-wash: rgba(140, 191, 104, 0.12);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --good-text: #0ca30c;
+    --shadow: none;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --page: #f6f6f1;
+    --card: #fcfcfb;
+    --ink: #14150f;
+    --ink-2: #53554a;
+    --muted: #8a8b80;
+    --hairline: #e3e3d8;
+    --grid-line: #ebebe1;
+    --accent: #3d6b2a;
+    --accent-ink: #33591f;
+    --accent-wash: rgba(93, 140, 60, 0.10);
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+    --good-text: #006300;
+    --shadow: 0 1px 2px rgba(20,21,15,.04), 0 4px 14px rgba(20,21,15,.05);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 64px; }
+
+  /* ---------- masthead ---------- */
+  .masthead { padding: 44px 0 26px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .eyebrow {
+    font-size: 11.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent-ink); margin: 0 0 10px;
+  }
+  h1 {
+    font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+    font-size: clamp(26px, 4vw, 36px); font-weight: 600; letter-spacing: -0.015em;
+    margin: 0; text-wrap: balance;
+  }
+  .masthead .meta { color: var(--ink-2); font-size: 13.5px; margin-top: 8px; max-width: 62ch; }
+  .meta-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--hairline); color: var(--ink-2); background: var(--card); white-space: nowrap;
+  }
+
+  /* ---------- KPI band ---------- */
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin: 10px 0 26px; }
+  .kpi {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 10px;
+    padding: 14px 16px 12px; box-shadow: var(--shadow);
+  }
+  .kpi .label { font-size: 11.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+  .kpi .value { font-size: 26px; font-weight: 650; letter-spacing: -0.01em; margin-top: 2px; }
+  .kpi .sub { font-size: 12px; color: var(--ink-2); margin-top: 1px; }
+  .kpi.hero { border-color: color-mix(in srgb, var(--accent) 35%, var(--hairline)); background: linear-gradient(180deg, var(--accent-wash), transparent 70%), var(--card); }
+
+  /* ---------- grid & cards ---------- */
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 18px; }
+  .card {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 12px;
+    padding: 20px 22px 22px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .span-12 { grid-column: span 12; }
+  .span-7 { grid-column: span 7; }
+  .span-6 { grid-column: span 6; }
+  .span-5 { grid-column: span 5; }
+  .card h2 {
+    font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+    font-size: 17px; font-weight: 600; margin: 0;
+  }
+  .card .note { font-size: 13px; color: var(--ink-2); margin: 3px 0 16px; max-width: 70ch; }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+
+  /* ---------- campaign bar list ---------- */
+  .barlist { display: flex; flex-direction: column; gap: 13px; }
+  .barrow { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 12px; align-items: center; }
+  .barrow .name { font-size: 13px; font-weight: 550; line-height: 1.25; }
+  .barrow .name small { display: block; font-weight: 400; color: var(--muted); font-size: 11.5px; }
+  .bartrack { position: relative; height: 30px; display: flex; align-items: center; }
+  .bar {
+    height: 22px; border-radius: 0 4px 4px 0; background: var(--s1); min-width: 3px;
+    transition: opacity .15s;
+  }
+  .barrow:hover .bar { opacity: .82; }
+  .barval { font-size: 13px; font-weight: 600; margin-left: 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .barval small { font-weight: 450; color: var(--ink-2); }
+  .cpa-chip {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600;
+    padding: 1px 8px; border-radius: 999px; margin-left: 8px; white-space: nowrap;
+  }
+  .cpa-good { color: var(--good-text); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  .cpa-bad  { color: var(--critical);  background: color-mix(in srgb, var(--critical) 10%, transparent); }
+  .cpa-none { color: var(--muted); background: color-mix(in srgb, var(--muted) 12%, transparent); }
+
+  /* ---------- charts ---------- */
+  .chartbox { position: relative; }
+  svg { display: block; width: 100%; height: auto; }
+  .axis-label { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .grid-l { stroke: var(--grid-line); stroke-width: 1; }
+  .baseline { stroke: var(--hairline); stroke-width: 1; }
+  .tooltip {
+    position: absolute; pointer-events: none; z-index: 5; min-width: 130px;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 8px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.13); padding: 8px 11px; font-size: 12.5px;
+    opacity: 0; transition: opacity .1s;
+  }
+  .tooltip.on { opacity: 1; }
+  .tooltip .t-title { font-weight: 600; margin-bottom: 4px; }
+  .tooltip .t-row { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+  .tooltip .t-row .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 6px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 10px; font-size: 12.5px; color: var(--ink-2); }
+  .legend .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+  .mini-title { font-size: 12px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 14px 0 4px; }
+
+  /* ---------- keyword table ---------- */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
+  th {
+    font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+    cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--card);
+  }
+  th:hover { color: var(--ink); }
+  th .arrow { font-size: 10px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .volcell { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .volbar-track { width: 110px; height: 14px; display: flex; align-items: center; }
+  .volbar { height: 10px; background: var(--s1); border-radius: 0 3px 3px 0; min-width: 2px; }
+  .comp { font-size: 11.5px; font-weight: 600; padding: 1px 9px; border-radius: 999px; }
+  .comp-LOW    { color: var(--good-text); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  .comp-MEDIUM { color: #8a6400; background: color-mix(in srgb, var(--warning) 18%, transparent); }
+  :root[data-theme="dark"] .comp-MEDIUM { color: #fab219; }
+  @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .comp-MEDIUM { color: #fab219; } }
+  .comp-HIGH   { color: var(--critical); background: color-mix(in srgb, var(--critical) 10%, transparent); }
+  tr:hover td { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+
+  /* ---------- callouts, negatives ---------- */
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--accent-wash);
+    border-radius: 0 8px 8px 0; padding: 10px 14px; font-size: 13.5px; margin-top: 16px;
+  }
+  .callout.warn { border-left-color: var(--critical); background: color-mix(in srgb, var(--critical) 7%, transparent); }
+  .neg-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .neg {
+    font-size: 12.5px; padding: 4px 11px; border-radius: 999px;
+    border: 1px dashed color-mix(in srgb, var(--critical) 45%, var(--hairline));
+    color: var(--ink-2); text-decoration: line-through;
+    text-decoration-color: color-mix(in srgb, var(--critical) 60%, transparent);
+  }
+  .why { font-size: 12px; color: var(--muted); margin-top: 12px; }
+
+  .btn {
+    font-size: 12px; font-weight: 600; color: var(--accent-ink); background: none;
+    border: 1px solid var(--hairline); border-radius: 7px; padding: 4px 11px; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:focus-visible, th:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .datatable-alt { display: none; margin-top: 12px; }
+  .datatable-alt.on { display: block; }
+
+  footer { margin-top: 34px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  /* ---------- sidebar & vistas ---------- */
+  body { padding-left: 208px; }
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 208px; z-index: 30;
+    background: var(--card); border-right: 1px solid var(--hairline);
+    display: flex; flex-direction: column; padding: 24px 14px 18px;
+  }
+  .sidebar .brand {
+    font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+    font-weight: 650; font-size: 16px; line-height: 1.2; padding: 0 8px;
+  }
+  .sidebar .brand small { display: block; font-weight: 500; font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
+  .nav { display: flex; flex-direction: column; gap: 4px; margin-top: 22px; }
+  .nav a {
+    display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 8px;
+    color: var(--ink-2); text-decoration: none; font-size: 13.5px; font-weight: 550;
+  }
+  .nav a .ndot { width: 7px; height: 7px; border-radius: 50%; background: var(--hairline); flex: none; }
+  .nav a.active { background: var(--accent-wash); color: var(--accent-ink); }
+  .nav a.active .ndot { background: var(--accent); }
+  .nav a:hover:not(.active) { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+  .sidebar .foot { margin-top: auto; padding: 0 8px; font-size: 11.5px; color: var(--muted); line-height: 1.8; }
+  .fable-badge {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600;
+    padding: 3px 10px; border-radius: 999px; color: var(--accent-ink);
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--hairline));
+    background: var(--accent-wash);
+  }
+  .view[hidden] { display: none; }
+
+  /* ---------- listings / plan de Fable ---------- */
+  .gen-btn {
+    background: var(--accent); color: #fff; border: none; font-size: 13.5px;
+    padding: 10px 18px; border-radius: 9px; cursor: pointer; font-weight: 600;
+  }
+  .gen-btn.shop { background: var(--shop); }
+  :root { --shop: #7c5cd6; --shop-ink: #6d4fc4; }
+  :root[data-theme="dark"] { --shop: #9d85e8; --shop-ink: #b3a0ef; }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) { --shop: #9d85e8; --shop-ink: #b3a0ef; }
+  }
+  .type-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    border: 1px solid var(--hairline); border-left: 4px solid var(--accent);
+    border-radius: 12px; background: var(--card); box-shadow: var(--shadow);
+    padding: 12px 16px; margin: 0 0 14px; flex-wrap: wrap;
+  }
+  .type-head.shop { border-left-color: var(--shop); margin-top: 26px; }
+  .type-head .th-title { font-size: 14.5px; font-weight: 700; }
+  .type-head small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; max-width: 640px; }
+  .type-badge {
+    font-size: 10px; font-weight: 800; letter-spacing: .08em; padding: 2px 9px;
+    border-radius: 999px; margin-right: 8px; vertical-align: 1px;
+  }
+  .type-badge.search { color: var(--good-text); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .type-badge.shop { color: var(--shop-ink); background: color-mix(in srgb, var(--shop) 14%, transparent); }
+  .plan-dtl { border-top: 1px dashed var(--grid-line); }
+  .plan-dtl summary {
+    cursor: pointer; list-style: none; display: flex; align-items: center; gap: 9px;
+    padding: 10px 2px; font-size: 13px; font-weight: 650;
+  }
+  .plan-dtl summary::-webkit-details-marker { display: none; }
+  .plan-dtl summary .chev { transition: transform .15s; font-size: 10px; color: var(--muted); flex: none; }
+  .plan-dtl[open] summary .chev { transform: rotate(90deg); }
+  .plan-dtl summary .chip { margin-left: auto; }
+  .plan-dtl .dtl-body { padding: 2px 2px 12px; }
+  .gen-btn:hover { filter: brightness(1.08); }
+  .gen-btn:disabled { opacity: .55; cursor: default; }
+  :root[data-theme="dark"] .gen-btn { color: #10130c; }
+  @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .gen-btn { color: #10130c; } }
+  .plan-status {
+    border: 1px solid var(--hairline); background: var(--card); border-radius: 10px;
+    padding: 12px 16px; font-size: 13.5px; margin-bottom: 18px; box-shadow: var(--shadow);
+  }
+  .plan-status .pulse { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); margin-right: 8px; animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: .3 } 50% { opacity: 1 } }
+  .plan-empty {
+    border: 1px dashed var(--hairline); border-radius: 12px; padding: 44px 20px;
+    text-align: center; color: var(--ink-2); font-size: 14px;
+  }
+  .camp-card { margin-bottom: 18px; }
+  .camp-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .budget-chip { font-size: 12.5px; font-weight: 650; color: var(--accent-ink); background: var(--accent-wash); padding: 3px 11px; border-radius: 999px; white-space: nowrap; }
+  .adgroup { border: 1px solid var(--hairline); border-radius: 10px; padding: 14px 16px; margin-top: 14px; }
+  .adgroup h3 { margin: 0; font-size: 14.5px; font-weight: 620; }
+  .adgroup .why { margin: 3px 0 10px; }
+  .kwchips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .kwchip {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px;
+    border: 1px solid var(--hairline); border-radius: 999px; padding: 3px 10px 3px 12px;
+  }
+  .kwchip b { font-weight: 550; }
+  .mtag { font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 1px 6px; border-radius: 5px; }
+  .mtag-EXACT  { color: var(--good-text); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .mtag-PHRASE { color: var(--s1); background: color-mix(in srgb, var(--s1) 12%, transparent); }
+  .mtag-SHOP   { color: var(--shop-ink); background: color-mix(in srgb, var(--shop) 14%, transparent); }
+  .mtag-BROAD  { color: var(--muted); background: color-mix(in srgb, var(--muted) 15%, transparent); }
+  .rsa { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .rsa h4 { margin: 0 0 6px; font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+  .rsa ul { margin: 0; padding: 0; list-style: none; font-size: 13px; }
+  .rsa li { padding: 4px 0; border-bottom: 1px dashed var(--grid-line); display: flex; justify-content: space-between; gap: 10px; }
+  .rsa li:last-child { border-bottom: none; }
+  .rsa .cc { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; flex: none; }
+  .rsa .cc.over { color: var(--critical); font-weight: 700; }
+  .plan-meta { font-size: 12px; color: var(--muted); margin-top: 16px; }
+
+  /* ---------- listings v2: diseño de campañas ---------- */
+  .camp-card { padding: 0; overflow: hidden; }
+  .camp-band {
+    padding: 18px 22px; display: flex; justify-content: space-between; align-items: center;
+    gap: 14px; flex-wrap: wrap; border-bottom: 1px solid var(--hairline); border-left: 4px solid var(--accent);
+    background: linear-gradient(90deg, var(--accent-wash), transparent 65%);
+  }
+  .camp-band.phrase {
+    border-left-color: var(--s1);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--s1) 10%, transparent), transparent 65%);
+  }
+  .camp-band h2 { margin: 0; font-size: 18px; }
+  .camp-role { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--accent-ink); margin-bottom: 3px; }
+  .camp-band.phrase .camp-role { color: var(--s1); }
+  .camp-budget { text-align: right; }
+  .camp-budget .num { font-size: 27px; font-weight: 700; letter-spacing: -0.01em; line-height: 1; }
+  .camp-budget small { color: var(--muted); font-size: 11.5px; }
+  .camp-body { padding: 18px 22px 22px; }
+  .reason {
+    display: flex; gap: 10px; align-items: flex-start; background: var(--page);
+    border: 1px solid var(--hairline); border-radius: 10px; padding: 11px 14px;
+    font-size: 13px; line-height: 1.5; margin-bottom: 6px;
+  }
+  .reason .zap { flex: none; font-size: 14px; }
+  .reason b { color: var(--accent-ink); }
+  .ag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; margin-top: 14px; }
+  .ag-grid .adgroup { margin-top: 0; display: flex; flex-direction: column; }
+  .adpreview {
+    border: 1px solid var(--hairline); border-radius: 10px; padding: 12px 14px;
+    background: var(--card); box-shadow: var(--shadow); margin: 10px 0 12px;
+  }
+  .adpreview .sp { font-size: 11px; font-weight: 700; color: var(--ink); }
+  .adpreview .urlrow { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .adpreview .fav {
+    width: 22px; height: 22px; border-radius: 50%; flex: none; font-size: 12px;
+    background: var(--accent-wash); display: flex; align-items: center; justify-content: center;
+  }
+  .adpreview .site { font-size: 12px; line-height: 1.25; }
+  .adpreview .site small { display: block; color: var(--muted); font-size: 11px; }
+  .adpreview .headline { color: var(--s1); font-size: 15.5px; font-weight: 550; line-height: 1.3; margin: 5px 0 3px; }
+  .adpreview .desc { font-size: 12.5px; color: var(--ink-2); line-height: 1.45; }
+  .assets h5 { margin: 10px 0 6px; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .hl-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .hl-pill {
+    position: relative; font-size: 12px; border: 1px solid var(--hairline);
+    border-radius: 7px; padding: 4px 9px 6px; overflow: hidden; background: var(--card);
+  }
+  .hl-pill .meter { position: absolute; left: 0; bottom: 0; height: 2.5px; background: var(--accent); }
+  .hl-pill.over { border-color: var(--critical); }
+  .hl-pill.over .meter { background: var(--critical); }
+  .flow { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .fnode {
+    flex: 1; min-width: 150px; border: 1px solid var(--hairline); border-radius: 10px;
+    padding: 11px 13px; font-size: 12.5px; line-height: 1.45; background: var(--card);
+  }
+  .fnode b { display: block; font-size: 12.5px; }
+  .fnode.exact { border-color: color-mix(in srgb, var(--accent) 45%, var(--hairline)); background: var(--accent-wash); }
+  .fnode.phrase { border-color: color-mix(in srgb, var(--s1) 40%, var(--hairline)); background: color-mix(in srgb, var(--s1) 8%, transparent); }
+  .farrow { display: flex; flex-direction: column; justify-content: center; color: var(--muted); font-size: 16px; flex: none; }
+  .farrow small { font-size: 10px; letter-spacing: .04em; text-align: center; }
+  .flow-return {
+    margin-top: 8px; font-size: 12px; color: var(--accent-ink); text-align: right;
+    border-top: 1px dashed var(--hairline); padding-top: 8px;
+  }
+  .budget-strip { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin: 10px 0 6px; }
+  .budget-strip .seg-exact { background: var(--accent); }
+  .budget-strip .seg-phrase { background: var(--s1); }
+  .budget-legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+  .budget-legend .dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-right: 5px; }
+  .steps-list { list-style: none; margin: 8px 0 0; padding: 0; counter-reset: paso; }
+  .steps-list li {
+    counter-increment: paso; position: relative; padding: 10px 0 10px 44px;
+    border-bottom: 1px dashed var(--grid-line); font-size: 13.5px; line-height: 1.5;
+  }
+  .steps-list li:last-child { border-bottom: none; }
+  .steps-list li::before {
+    content: counter(paso); position: absolute; left: 0; top: 8px;
+    width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--accent-wash); color: var(--accent-ink); font-weight: 700; font-size: 13px;
+  }
+  .think-panel {
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--hairline));
+    background: linear-gradient(180deg, var(--accent-wash), transparent 80%), var(--card);
+    border-radius: 12px; padding: 22px 24px; box-shadow: var(--shadow);
+  }
+  .think-panel .tsteps { margin: 14px 0 0; display: flex; flex-direction: column; gap: 9px; font-size: 13.5px; }
+  .think-panel .tstep { display: flex; gap: 10px; align-items: center; color: var(--muted); }
+  .think-panel .tstep.on { color: var(--ink); font-weight: 550; }
+  .think-panel .tstep .tdot { width: 8px; height: 8px; border-radius: 50%; background: var(--hairline); flex: none; }
+  .think-panel .tstep.on .tdot { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+  .think-panel .tstep.done { color: var(--good-text); }
+  .think-panel .tstep.done .tdot { background: var(--good); animation: none; }
+
+  /* ---------- panel en vivo ---------- */
+  .pt-hide { display: none !important; }
+  .live-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 14px; margin: 0 0 20px; }
+  .live-tile {
+    border: 1px solid var(--hairline); border-left: 4px solid var(--accent); border-radius: 12px;
+    background: var(--card); box-shadow: var(--shadow); padding: 14px 17px 13px; min-width: 0;
+  }
+  .live-tile.phrase { border-left-color: var(--s1); }
+  .live-tile.neutral { border-left-color: var(--hairline); }
+  .live-tile .lt-head { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); animation: pulse 1.4s ease-in-out infinite; flex: none; }
+  .live-tile .big { font-size: 27px; font-weight: 700; letter-spacing: -0.01em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .live-tile .big small { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .live-row { display: flex; gap: 13px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin-top: 7px; font-variant-numeric: tabular-nums; }
+  .live-row b { font-variant-numeric: tabular-nums; }
+  .funnel-steps { display: flex; align-items: center; gap: 3px; margin-top: 8px; min-width: 0; }
+  .fstep { text-align: center; flex: 1 1 0; min-width: 0; overflow: hidden; }
+  .fstep b { display: block; font-size: 19px; font-variant-numeric: tabular-nums; }
+  .fstep small { font-size: 9px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .farr { color: var(--muted); font-size: 10px; flex: none; }
+  .hb-line { font-size: 12.5px; color: var(--ink-2); margin-top: 7px; line-height: 1.6; }
+  .hb-line b { color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+  .lesson-mini { font-size: 11.5px; color: var(--muted); margin-top: 8px; border-top: 1px dashed var(--grid-line); padding-top: 7px; line-height: 1.45; }
+  .term-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .term-chip {
+    font-size: 12px; padding: 3px 11px; border-radius: 999px; border: 1px solid var(--hairline);
+    background: var(--card); font-variant-numeric: tabular-nums;
+  }
+  .term-chip b { color: var(--accent-ink); }
+  .comp-row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--grid-line); font-size: 13px; align-items: baseline; }
+  .comp-row:last-child { border-bottom: none; }
+  .comp-row .vol { font-weight: 650; font-variant-numeric: tabular-nums; }
+
+  /* ---------- merchant: catálogo con fotos ---------- */
+  .prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .prod-card {
+    position: relative; border: 1px solid var(--hairline); border-radius: 12px;
+    background: var(--card); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .prod-img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: var(--page); }
+  .prod-noimg { display: flex; align-items: center; justify-content: center; font-size: 42px; }
+  .prod-star {
+    position: absolute; top: 8px; left: 8px; font-size: 10.5px; font-weight: 700;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 999px;
+    padding: 2px 9px; box-shadow: var(--shadow);
+  }
+  .prod-oos {
+    position: absolute; top: 8px; right: 8px; font-size: 10.5px; font-weight: 700;
+    background: var(--card); color: var(--critical); border: 1px solid var(--critical);
+    border-radius: 999px; padding: 2px 9px; box-shadow: var(--shadow);
+  }
+  .prod-card.oos .prod-img { filter: grayscale(.75); opacity: .75; }
+  .prod-card { transition: transform .15s ease, box-shadow .15s ease; }
+  .prod-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.10); }
+  .prod-foot {
+    display: flex; align-items: center; gap: 7px; padding: 8px 12px;
+    border-top: 1px solid var(--hairline); font-size: 11.5px; font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+  .pstock-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .pf-ok  { color: var(--good-text); } .pf-ok  .pstock-dot { background: var(--good); }
+  .pf-out { color: var(--critical); }  .pf-out .pstock-dot { background: var(--critical); }
+  .pf-off { color: var(--muted); }     .pf-off .pstock-dot { background: var(--muted); }
+  .prod-vars {
+    display: flex; flex-wrap: wrap; gap: 4px; padding: 9px 12px 11px;
+    border-top: 1px solid var(--hairline);
+  }
+  .pvar {
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid transparent; font-variant-numeric: tabular-nums; line-height: 1.5;
+  }
+  .pv-ok  { color: var(--good-text); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  .pv-out { color: var(--critical);  background: color-mix(in srgb, var(--critical) 10%, transparent); }
+  .pv-na  { color: var(--muted);     background: color-mix(in srgb, var(--muted) 14%, transparent); }
+  .pvar.pv-own { border-color: currentColor; }
+  .prod-body { padding: 10px 12px 12px; }
+  .prod-title { font-size: 12.5px; font-weight: 600; line-height: 1.3; min-height: 2.6em; }
+  .prod-roas { font-size: 20px; font-weight: 750; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .prod-roas small { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: .05em; }
+  .prod-stats { font-size: 11.5px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  /* ---------- gestor de campañas estilo Meta ---------- */
+  .lvl-tabs {
+    display: flex; gap: 2px; border: 1px solid var(--hairline); border-radius: 10px;
+    overflow: hidden; width: max-content; max-width: 100%; background: var(--card);
+    box-shadow: var(--shadow); margin-bottom: 14px;
+  }
+  .lvl-tab {
+    padding: 10px 18px; font-size: 13px; font-weight: 550; border: none; background: none;
+    cursor: pointer; color: var(--ink-2); display: flex; gap: 8px; align-items: center;
+    font-family: inherit; border-right: 1px solid var(--hairline);
+  }
+  .lvl-tab:last-child { border-right: none; }
+  .lvl-tab.active { background: var(--accent-wash); color: var(--accent-ink); }
+  .lvl-tab .cnt {
+    font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px;
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+  }
+  .lvl-tab.active .cnt { background: var(--accent); color: #fff; }
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 550;
+    padding: 5px 12px; border-radius: 999px; margin-bottom: 12px;
+    background: var(--accent-wash); color: var(--accent-ink);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--hairline));
+  }
+  .filter-chip button { border: none; background: none; cursor: pointer; color: inherit; font-size: 14px; padding: 0; line-height: 1; }
+  .mgr-table tbody tr { cursor: pointer; }
+  .mgr-table .drill { color: var(--muted); font-size: 12px; }
+  .sw {
+    width: 34px; height: 20px; border-radius: 999px; background: var(--hairline);
+    position: relative; cursor: pointer; border: none; transition: background .15s; flex: none;
+  }
+  .sw.on { background: var(--accent); }
+  .sw::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+    border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.25);
+  }
+  .sw.on::after { left: 16px; }
+  .st-chip { font-size: 11px; font-weight: 700; letter-spacing: .05em; padding: 2px 9px; border-radius: 6px; }
+  .st-DRAFT { color: #8a6400; background: color-mix(in srgb, var(--warning) 18%, transparent); }
+  .st-LIVE { color: var(--good-text); background: color-mix(in srgb, var(--good) 13%, transparent); }
+  .row-del { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 2px 6px; }
+  .row-del:hover { color: var(--critical); }
+  .row-view {
+    border: 1px solid var(--hairline); background: var(--card); border-radius: 7px;
+    padding: 3px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+    color: var(--accent-ink); font-family: inherit;
+  }
+  .row-view:hover { background: var(--accent-wash); border-color: var(--accent); }
+  .ad-mini { font-size: 12.5px; }
+  .ad-mini .h { color: var(--s1); font-weight: 550; }
+  .ad-mini .d { color: var(--muted); font-size: 11.5px; }
+  .accept-btn {
+    border: none; border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 600;
+    cursor: pointer; font-family: inherit; background: var(--card); color: var(--accent-ink);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--hairline));
+  }
+  .accept-btn:hover { background: var(--accent-wash); }
+  .accept-btn.done { background: var(--accent-wash); cursor: default; opacity: .8; }
+  .health-ok { color: var(--good-text); background: color-mix(in srgb, var(--good) 13%, transparent); }
+  .health-atencion { color: #8a6400; background: color-mix(in srgb, var(--warning) 20%, transparent); }
+  .health-critico { color: var(--critical); background: color-mix(in srgb, var(--critical) 12%, transparent); }
+  .health-chip { font-size: 11px; font-weight: 700; letter-spacing: .05em; padding: 2px 9px; border-radius: 999px; text-transform: uppercase; }
+  .review-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 9px 14px; border: 1px solid var(--hairline); border-radius: 10px;
+    background: var(--card); box-shadow: var(--shadow); font-size: 12.5px;
+  }
+  .review-bar .rb-meta { color: var(--muted); margin-left: auto; font-size: 11.5px; white-space: nowrap; }
+  .review-full { margin-top: 10px; }
+  .rev-h { margin: 16px 0 6px; font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+  .rev-h:first-child { margin-top: 0; }
+  .rev-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+  .rev-camp { border: 1px solid var(--hairline); border-radius: 10px; padding: 12px 14px; background: var(--page); }
+  .rev-camp ul { margin: 0; padding-left: 16px; font-size: 12.5px; color: var(--ink-2); }
+  .rev-camp li { margin-bottom: 6px; line-height: 1.5; }
+  .rev-recs { margin: 4px 0 0; padding-left: 20px; font-size: 13px; }
+  .rev-recs li { margin-bottom: 5px; line-height: 1.5; }
+
+  /* ---------- drawer de detalle (estilo Meta) ---------- */
+  .drawer-overlay {
+    position: fixed; inset: 0; background: rgba(10, 12, 8, .35); z-index: 60;
+    opacity: 0; pointer-events: none; transition: opacity .18s;
+  }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 94vw); z-index: 61;
+    background: var(--card); border-left: 1px solid var(--hairline);
+    box-shadow: -12px 0 40px rgba(0,0,0,.18); overflow-y: auto; padding: 24px 26px 32px;
+    transform: translateX(102%); transition: transform .22s ease;
+  }
+  body.drawer-open .drawer { transform: none; }
+  body.drawer-open .drawer-overlay { opacity: 1; pointer-events: auto; }
+  @media (prefers-reduced-motion: reduce) { .drawer, .drawer-overlay { transition: none; } }
+  .drawer .d-close {
+    position: sticky; top: 0; float: right; border: 1px solid var(--hairline); background: var(--card);
+    border-radius: 8px; width: 32px; height: 32px; cursor: pointer; font-size: 15px; color: var(--ink-2);
+  }
+  .drawer h2 { margin: 4px 0 2px; font-size: 19px; }
+  .drawer .d-sub { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+  .d-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .d-metric { border: 1px solid var(--hairline); border-radius: 9px; padding: 9px 12px; }
+  .d-metric .v { font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .d-metric .l { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .d-section { margin-top: 16px; }
+  .d-section h4 { margin: 0 0 8px; font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+  .d-list-row {
+    display: flex; justify-content: space-between; gap: 10px; padding: 8px 0;
+    border-bottom: 1px dashed var(--grid-line); font-size: 13px; cursor: pointer;
+  }
+  .d-list-row:hover { color: var(--accent-ink); }
+
+  @media (max-width: 900px) {
+    body { padding-left: 0; }
+    .sidebar { position: static; width: auto; flex-direction: row; align-items: center; gap: 14px; padding: 12px 16px; border-right: none; border-bottom: 1px solid var(--hairline); }
+    .sidebar .brand small { display: none; }
+    .nav { flex-direction: row; margin-top: 0; }
+    .sidebar .foot { display: none; }
+    .rsa { grid-template-columns: 1fr; }
+    .kpis { grid-template-columns: repeat(3, 1fr); }
+    .span-7, .span-5, .span-6 { grid-column: span 12; }
+  }
+  @media (max-width: 560px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .barrow { grid-template-columns: 1fr; gap: 2px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+
+<nav class="sidebar">
+  <div class="brand">Jersey Pickles<small>Ads Intelligence</small></div>
+  <div class="nav">
+    <a href="#panel" data-view="panel" class="active"><span class="ndot"></span>Panel</a>
+    <a href="#listings" data-view="listings"><span class="ndot"></span>Listings</a>
+    <a href="#campaigns" data-view="campaigns"><span class="ndot"></span>Campañas</a>
+    <a href="#merchant" data-view="merchant"><span class="ndot"></span>Merchant</a>
+    <a href="#pixel" data-view="pixel"><span class="ndot"></span>Salud del pixel</a>
+  </div>
+  <div class="foot">
+    <span class="fable-badge">⚡ Fable 5 dentro</span><br>
+    Google Ads API v25<br>
+    jerseypickles.com
+  </div>
+</nav>
+
+<div class="wrap">
+  <section id="view-panel" class="view">
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">Google Ads · Cuenta 488-882-3590 · EE.UU. · Inglés</p>
+      <h1>Jersey Pickles — Inteligencia de keywords</h1>
+      <p class="meta">Investigación validada con la API oficial de Google Ads. Oportunidades de búsqueda con datos frescos, tendencias vigiladas por Fable, y campañas nuevas listas en Listings. Empezamos de cero — sin el lastre de las campañas viejas.</p>
+    </div>
+    <div class="meta-chips">
+      <span class="chip">Datos: 1 ago 2026</span>
+      <span class="chip">API v25 · 4 fuentes</span>
+    </div>
+  </header>
+
+  <div class="lvl-tabs" id="panel-tabs" style="margin-bottom:16px">
+    <button class="lvl-tab active" data-pt="vivo">En vivo</button>
+    <button class="lvl-tab" data-pt="research">Investigación</button>
+    <button class="lvl-tab" data-pt="season">Estacionalidad</button>
+  </div>
+
+  <section id="live-strip" class="live-strip" hidden></section>
+
+  <section class="kpis" id="kpis" aria-label="Indicadores clave"></section>
+
+  <div id="live-extra"></div>
+
+  <section class="card span-12" id="watch-card" style="margin-bottom:18px" hidden>
+    <div class="card-head">
+      <h2>El vigía de Fable</h2>
+      <span class="fable-badge">⚡ observación automática</span>
+    </div>
+    <div id="watch-out"></div>
+  </section>
+
+  <div class="grid">
+
+    <section class="card span-12" id="card-opps">
+      <div class="card-head">
+        <h2>Oportunidades de keywords — top 30 por volumen</h2>
+        <span class="chip">clic en una columna para ordenar</span>
+      </div>
+      <p class="note">Ordenado por el volumen del <b>último mes</b>. Fuentes: volúmenes de Google (mensuales, cada 3 días) + señal en vivo de tus anuncios (cada minuto) + exploración diaria del vigía.</p>
+      <div class="lvl-tabs" id="opps-filter" style="margin-bottom:12px">
+        <button class="lvl-tab active" data-of="all">Todas <span class="cnt" id="of-all">0</span></button>
+        <button class="lvl-tab" data-of="camp">En campañas <span class="cnt" id="of-camp">0</span></button>
+        <button class="lvl-tab" data-of="opp">Oportunidades <span class="cnt" id="of-opp">0</span></button>
+        <button class="lvl-tab" data-of="explor">🌱 Exploración <span class="cnt" id="of-explor">0</span></button>
+      </div>
+      <div class="tablewrap" id="opps-table-wrap">
+        <table id="kwtable" aria-label="Tabla de keywords">
+          <thead><tr>
+            <th data-k="kw">Keyword <span class="arrow"></span></th>
+            <th data-k="vol_last" class="num">Últ. mes <span class="arrow"></span></th>
+            <th data-k="mom3" class="num">Tendencia 3m <span class="arrow"></span></th>
+            <th class="num" title="Impresiones reales de tus anuncios, últimos 7 días">⚡ En vivo 7d</th>
+            <th data-k="vol" class="num">Prom. 12m <span class="arrow"></span></th>
+            <th data-k="comp">Competencia <span class="arrow"></span></th>
+            <th data-k="low" class="num">Puja baja <span class="arrow"></span></th>
+            <th data-k="high" class="num">Puja alta <span class="arrow"></span></th>
+            <th>Evolución</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="opps-explor" hidden>
+        <p class="note" style="margin-top:2px">Candidatas frescas del autocompletado (semillas del vigía incluidas) — <b>aún sin validar</b>: entran a validación con la API en el próximo ciclo y, si tienen volumen, suben a Oportunidades solas.</p>
+        <div class="tablewrap"><table><thead><tr><th>Candidata</th><th>Descubierta explorando</th></tr></thead>
+        <tbody id="explor-body"></tbody></table></div>
+      </div>
+    </section>
+
+    <section class="card span-7" id="card-season">
+      <div class="card-head">
+        <h2>Estacionalidad — el pico es ahora</h2>
+        <button class="btn" id="season-toggle" aria-expanded="false">Ver tabla</button>
+      </div>
+      <p class="note">Volumen mensual de búsqueda de 4 keywords clave. La banda verde marca ago–sep, el pico histórico de la categoría.</p>
+      <div class="legend" id="season-legend"></div>
+      <div class="chartbox" id="season-chart"></div>
+      <div class="datatable-alt tablewrap" id="season-table"></div>
+    </section>
+
+    <section class="card span-5" id="card-clean">
+      <div class="card-head"><h2>Limpieza recomendada</h2></div>
+      <p class="note">Negativas a excluir en la campaña Search — intención equivocada detectada en la investigación.</p>
+      <div class="neg-chips" id="negs"></div>
+      <p class="why">Motivos: cómics y bares homónimos, marcas de terceros, recetas caseras (DIY), tendencias virales ajenas al producto y geografías fuera de mercado.</p>
+      <div class="callout" id="plastic-note"></div>
+    </section>
+
+  </div>
+  </section>
+
+  <section id="view-listings" class="view" hidden>
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">Listings · impulsado por Fable 5</p>
+        <h1>Campañas listas para lanzar</h1>
+        <p class="meta">Fable arma cada plan con datos reales y se auto-audita. Tú aceptas — y el switch del gestor decide cómo se lanza.</p>
+      </div>
+    </header>
+    <div id="live-list"></div>
+    <div class="type-head">
+      <div><span class="type-badge search">🔎 SEARCH</span><span class="th-title">Campañas de keywords</span>
+        <small>Grupos, concordancias, anuncios RSA y negativas desde tus keywords validadas y el histórico.</small></div>
+      <button class="gen-btn" id="btn-generate">⚡ Generar plan</button>
+    </div>
+    <div id="plan-status" class="plan-status" hidden></div>
+    <div id="plan-out"></div>
+    <div class="type-head shop">
+      <div><span class="type-badge shop">🛒 SHOPPING</span><span class="th-title">Campaña de productos</span>
+        <small>Estructura, pujas, exclusiones y hoja de escalado — decididas por Fable desde el catálogo real y el stock.</small></div>
+      <button class="gen-btn shop" id="btn-generate-shop">Generar plan</button>
+    </div>
+    <div id="shop-out"></div>
+  </section>
+
+  <section id="view-campaigns" class="view" hidden>
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">Gestor de campañas · borradores → Google Ads</p>
+        <h1>Campañas</h1>
+        <p class="meta">Los listings que aceptas viven aquí, organizados como en Meta: campaña → grupo de anuncios → anuncios. Desde aquí se subirán a Google Ads en pausado.</p>
+      </div>
+    </header>
+    <div id="camp-review" style="margin-bottom:14px"></div>
+    <div id="actions-inbox" style="margin-bottom:16px"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+      <div class="lvl-tabs" id="mgr-tabs" style="margin-bottom:0">
+        <button class="lvl-tab active" data-lvl="camp">Campañas <span class="cnt" id="cnt-camp">0</span></button>
+        <button class="lvl-tab" data-lvl="group">Grupos de anuncios <span class="cnt" id="cnt-group">0</span></button>
+        <button class="lvl-tab" data-lvl="ad">Anuncios <span class="cnt" id="cnt-ad">0</span></button>
+      </div>
+      <div class="lvl-tabs" id="mgr-range" style="margin-bottom:0">
+        <button class="lvl-tab" data-r="today">Hoy</button>
+        <button class="lvl-tab" data-r="yesterday">Ayer</button>
+        <button class="lvl-tab active" data-r="7d">7 días</button>
+        <button class="lvl-tab" data-r="14d">14 días</button>
+        <button class="lvl-tab" data-r="30d">30 días</button>
+      </div>
+    </div>
+    <div id="mgr-filter"></div>
+    <div id="mgr-out"><div class="plan-empty">Cargando…</div></div>
+  </section>
+
+  <section id="view-merchant" class="view" hidden>
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">Merchant Center · feed AdNabu desde Shopify</p>
+        <h1>Merchant — tu catálogo en los anuncios</h1>
+        <p class="meta">Rendimiento real por producto (histórico PMax + campañas actuales). ⭐ = estrella con ROAS ≥ 20x. Cuando lancemos Shopping, Fable armará los grupos de productos con esta inteligencia — el lanzamiento vivirá en Campañas, como siempre.</p>
+      </div>
+      <div class="lvl-tabs" style="margin-bottom:0">
+        <button class="lvl-tab active" data-pd="365">12 meses</button>
+        <button class="lvl-tab" data-pd="30">30 días</button>
+      </div>
+    </header>
+    <div id="products-out"><div class="plan-empty">Cargando catálogo…</div></div>
+  </section>
+
+  <section id="view-pixel" class="view" hidden>
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">Vigilancia de conversiones · AdNabu vía Shopify</p>
+        <h1>Salud del pixel</h1>
+        <p class="meta">¿Está pasando la conversión de verdad? Aquí se vigila qué acciones cuentan como conversión (primarias), qué registró cada una en los últimos 30 días, y salta la alerta si entran clics sin compras. Los datos históricos previos a la limpieza del 1 ago tenían acciones duplicadas — de ahí que parecieran inflados.</p>
+      </div>
+    </header>
+    <div id="pixel-out"><div class="plan-empty">Consultando la Google Ads API…</div></div>
+  </section>
+
+  <footer>
+    <span>Fuente: Google Ads API (KeywordPlanIdeaService, search_term_view, campaign) · estrategia: Fable 5</span>
+    <span>Jersey Pickles · jerseypickles.com</span>
+  </footer>
+</div>
+
+<div class="drawer-overlay" id="drawer-overlay"></div>
+<aside class="drawer" id="drawer" aria-label="Detalle"></aside>
+
+<script>
+const DATA = __DATA__;
+
+const $ = (s, el=document) => el.querySelector(s);
+const fmt = n => n.toLocaleString('en-US');
+const fmt$ = n => '$' + n.toLocaleString('en-US', {maximumFractionDigits: n < 10 ? 2 : 0});
+const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const mlabel = ym => { const [y,m] = ym.split('-'); return MES[+m-1] + ' ' + y.slice(2); };
+const SERIES = [
+  getComputedStyle(document.documentElement).getPropertyValue('--s1').trim(),
+  getComputedStyle(document.documentElement).getPropertyValue('--s2').trim(),
+  getComputedStyle(document.documentElement).getPropertyValue('--s3').trim(),
+  getComputedStyle(document.documentElement).getPropertyValue('--s4').trim(),
+];
+
+/* ---------- KPIs (centrados en keywords — el histórico de campañas eliminadas no se muestra) ---------- */
+const K = DATA.kpi;
+const kwsAll = DATA.keywords;
+const rising = kwsAll.filter(k => (k.mom3 ?? 0) > 0).length;
+const lowComp = kwsAll.filter(k => k.comp === 'LOW').length;
+const topLast = [...kwsAll].sort((a, b) => (b.vol_last || 0) - (a.vol_last || 0))[0];
+const minBid = Math.min(...kwsAll.map(k => k.low).filter(v => v > 0));
+const kpis = [
+  {label: 'Candidatas validadas', value: fmt(K.validated), sub: 'con métricas reales de la API', hero: true},
+  {label: 'Ideas de keywords', value: fmt(K.ideas), sub: 'generadas con la API'},
+  {label: 'Al alza (3 m)', value: `${rising} de ${kwsAll.length}`, sub: 'tendencia positiva', hero: true},
+  {label: 'Top último mes', value: fmt(topLast ? topLast.vol_last : 0), sub: topLast ? topLast.kw : '—', hero: true},
+  {label: 'Competencia baja', value: lowComp, sub: 'keywords en el top 30'},
+  {label: 'Pujas desde', value: '$' + minBid.toFixed(2), sub: 'CPC mínimo estimado'},
+];
+$('#kpis').innerHTML = kpis.map(k =>
+  `<div class="kpi${k.hero ? ' hero' : ''}"><div class="label">${k.label}</div><div class="value">${k.value}</div><div class="sub">${k.sub}</div></div>`
+).join('');
+
+/* ---------- tabla de keywords ---------- */
+const kws = DATA.keywords;
+const maxVol = Math.max(...kws.map(k => k.vol));
+const COMP_ES = {LOW: 'Baja', MEDIUM: 'Media', HIGH: 'Alta'};
+function spark(series, color) {
+  const W = 120, H = 26, vals = series.map(s => s[1]);
+  const mx = Math.max(...vals, 1);
+  const pts = vals.map((v, i) => `${(i/(vals.length-1)*(W-6)+3).toFixed(1)},${(H-3-(v/mx*(H-8))).toFixed(1)}`);
+  const last = pts[pts.length-1].split(',');
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
+    <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+    <circle cx="${last[0]}" cy="${last[1]}" r="3" fill="${color}"></circle></svg>`;
+}
+let sortK = 'vol_last', sortDir = -1;
+let oppFilter = 'all';
+const CAMP_KWS = new Set(DATA.campaign_kws || []);
+const EXPLOR = DATA.exploration || [];
+const maxVolLast = Math.max(...kws.map(k => k.vol_last || 0), 1);
+
+function oppSubset() {
+  if (oppFilter === 'camp') return kws.filter(k => CAMP_KWS.has(k.kw));
+  if (oppFilter === 'opp') return kws.filter(k => !CAMP_KWS.has(k.kw));
+  return kws;
+}
+document.querySelectorAll('#opps-filter .lvl-tab').forEach(b =>
+  b.addEventListener('click', () => {
+    oppFilter = b.dataset.of;
+    document.querySelectorAll('#opps-filter .lvl-tab').forEach(x => x.classList.toggle('active', x.dataset.of === oppFilter));
+    const explor = oppFilter === 'explor';
+    $('#opps-table-wrap').hidden = explor;
+    $('#opps-explor').hidden = !explor;
+    if (explor) {
+      $('#explor-body').innerHTML = EXPLOR.map(e =>
+        `<tr><td><b>🌱 ${esc(e.kw)}</b></td><td style="color:var(--muted)">${esc(e.origen)}</td></tr>`).join('');
+    } else renderTable();
+  }));
+function updateOppCounts() {
+  $('#of-all').textContent = kws.length;
+  $('#of-camp').textContent = kws.filter(k => CAMP_KWS.has(k.kw)).length;
+  $('#of-opp').textContent = kws.filter(k => !CAMP_KWS.has(k.kw)).length;
+  $('#of-explor').textContent = EXPLOR.length;
+}
+updateOppCounts();
+function momChip(m) {
+  if (m == null) return '<span style="color:var(--muted)">—</span>';
+  const up = m >= 0;
+  const style = up ? 'color:var(--good-text)' : 'color:var(--critical)';
+  return `<span style="${style};font-weight:600">${up ? '▲' : '▼'} ${up ? '+' : ''}${m}%</span>`;
+}
+function renderTable() {
+  const sorted = [...oppSubset()].sort((a, b) => {
+    const va = a[sortK] ?? -Infinity, vb = b[sortK] ?? -Infinity;
+    return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sortDir;
+  });
+  const liveKw = window._pulseKws || new Map();
+  $('#kwtable tbody').innerHTML = sorted.map(k => `<tr>
+    <td><b>${k.kw}</b></td>
+    <td class="num"><span class="volcell"><span class="volbar-track"><span class="volbar" style="width:${((k.vol_last||0)/maxVolLast*100).toFixed(1)}%"></span></span>${fmt(k.vol_last||0)}</span></td>
+    <td class="num">${momChip(k.mom3)}</td>
+    <td class="num">${(() => { const lv = liveKw.get(k.kw); return lv ? `<b style="color:var(--accent-ink)">${fmt(lv.impr)}</b><small style="color:var(--muted)"> impr</small>` : '<span style="color:var(--muted)">—</span>'; })()}</td>
+    <td class="num">${fmt(k.vol)}</td>
+    <td><span class="comp comp-${k.comp}">${COMP_ES[k.comp] || k.comp}</span></td>
+    <td class="num">$${k.low.toFixed(2)}</td>
+    <td class="num">$${k.high.toFixed(2)}</td>
+    <td>${spark(k.series, 'var(--s1)')}</td>
+  </tr>`).join('');
+  document.querySelectorAll('#kwtable th').forEach(th => {
+    const a = $('.arrow', th);
+    if (a) a.textContent = th.dataset.k === sortK ? (sortDir < 0 ? '▼' : '▲') : '';
+  });
+}
+document.querySelectorAll('#kwtable th[data-k]').forEach(th => {
+  th.tabIndex = 0;
+  const go = () => {
+    if (sortK === th.dataset.k) sortDir *= -1;
+    else { sortK = th.dataset.k; sortDir = th.dataset.k === 'kw' ? 1 : -1; }
+    renderTable();
+  };
+  th.addEventListener('click', go);
+  th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+});
+renderTable();
+
+/* ---------- estacionalidad ---------- */
+const SEASON_ORDER = ['pickles cucumber', 'pickles refrigerated', 'bread and butter pickles', 'fermented pickles'];
+const seasonal = SEASON_ORDER.map(n => DATA.seasonal.find(s => s.kw === n)).filter(Boolean);
+const smonths = seasonal[0].series.map(s => s[0]);
+
+$('#season-legend').innerHTML = seasonal.map((s, i) =>
+  `<span><span class="dot" style="background:${SERIES[i]}"></span>${s.kw}</span>`).join('');
+
+(function seasonChart() {
+  const W = 640, H = 300, pad = {l: 46, r: 130, t: 14, b: 26};
+  const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+  const allVals = seasonal.flatMap(s => s.series.map(p => p[1]));
+  const max = Math.max(...allVals) * 1.08;
+  const x = i => pad.l + i / (smonths.length - 1) * iw;
+  const y = v => pad.t + ih - v / max * ih;
+
+  // banda ago–sep 2025 (pico de temporada)
+  const iAug = smonths.indexOf('2025-08'), iSep = smonths.indexOf('2025-09');
+  let band = '';
+  if (iAug >= 0 && iSep >= 0) {
+    band = `<rect x="${x(iAug) - iw/(smonths.length-1)/2}" y="${pad.t}" width="${x(iSep)-x(iAug) + iw/(smonths.length-1)}" height="${ih}" fill="var(--accent-wash)"></rect>
+    <text class="axis-label" x="${(x(iAug)+x(iSep))/2}" y="${pad.t+12}" text-anchor="middle" fill="var(--accent-ink)" style="fill:var(--accent-ink);font-weight:600">pico</text>`;
+  }
+
+  let gridl = '', ylabels = '';
+  for (let g = 0; g <= 3; g++) {
+    const v = max / 3 * g, yy = y(v);
+    gridl += `<line class="grid-l" x1="${pad.l}" y1="${yy.toFixed(1)}" x2="${W-pad.r}" y2="${yy.toFixed(1)}"></line>`;
+    ylabels += `<text class="axis-label" x="${pad.l-7}" y="${(yy+3.5).toFixed(1)}" text-anchor="end">${v >= 1000 ? Math.round(v/1000) + 'k' : Math.round(v)}</text>`;
+  }
+  let xlabels = '';
+  smonths.forEach((m, i) => {
+    if (i % 2 === 0) xlabels += `<text class="axis-label" x="${x(i).toFixed(1)}" y="${H-6}" text-anchor="middle">${mlabel(m)}</text>`;
+  });
+
+  let lines = '';
+  const labelSpots = [];
+  seasonal.forEach((s, si) => {
+    const pts = s.series.map((p, i) => `${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');
+    lines += `<polyline points="${pts}" fill="none" stroke="${SERIES[si]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>`;
+    const lastV = s.series[s.series.length-1][1];
+    lines += `<circle cx="${x(smonths.length-1).toFixed(1)}" cy="${y(lastV).toFixed(1)}" r="3.5" fill="${SERIES[si]}" stroke="var(--card)" stroke-width="2"></circle>`;
+    const short = {'pickles cucumber':'cucumber','pickles refrigerated':'refrigerated','bread and butter pickles':'bread & butter','fermented pickles':'fermented'}[s.kw] || s.kw;
+    labelSpots.push({y: y(lastV) + 4, color: SERIES[si], text: short});
+  });
+  // separar etiquetas finales que colisionan (mín. 14px entre sí)
+  labelSpots.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labelSpots.length; i++) {
+    if (labelSpots[i].y - labelSpots[i-1].y < 14) labelSpots[i].y = labelSpots[i-1].y + 14;
+  }
+  const endlbl = labelSpots.map(l =>
+    `<text x="${W-pad.r+8}" y="${l.y.toFixed(1)}" font-size="11.5" font-weight="600" fill="${l.color}">${l.text}</text>`).join('');
+
+  const box = $('#season-chart');
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Volumen mensual de búsqueda por keyword">
+    ${band}${gridl}<line class="baseline" x1="${pad.l}" y1="${pad.t+ih+.5}" x2="${W-pad.r}" y2="${pad.t+ih+.5}"></line>
+    ${ylabels}${xlabels}${lines}${endlbl}
+    <line id="xhair" x1="0" y1="${pad.t}" x2="0" y2="${pad.t+ih}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" opacity="0"></line>
+    <rect id="hover-capture" x="${pad.l}" y="${pad.t}" width="${iw}" height="${ih}" fill="transparent"></rect></svg>
+    <div class="tooltip" role="status"></div>`;
+
+  const tip = $('.tooltip', box), xhair = $('#xhair', box), svg = $('svg', box);
+  $('#hover-capture', box).addEventListener('mousemove', e => {
+    const bb = svg.getBoundingClientRect();
+    const relX = (e.clientX - bb.x) / bb.width * W;
+    const i = Math.max(0, Math.min(smonths.length - 1, Math.round((relX - pad.l) / iw * (smonths.length - 1))));
+    xhair.setAttribute('x1', x(i)); xhair.setAttribute('x2', x(i)); xhair.setAttribute('opacity', '1');
+    tip.innerHTML = `<div class="t-title">${mlabel(smonths[i])}</div>` + seasonal.map((s, si) =>
+      `<div class="t-row"><span><span class="dot" style="background:${SERIES[si]}"></span>${s.kw.replace(' pickles','').replace('pickles ','')}</span><b>${fmt(s.series[i][1])}</b></div>`).join('');
+    const boxbb = box.getBoundingClientRect();
+    const px = e.clientX - boxbb.x;
+    tip.style.left = Math.min(px + 14, boxbb.width - 190) + 'px';
+    tip.style.top = '30px';
+    tip.classList.add('on');
+  });
+  $('#hover-capture', box).addEventListener('mouseleave', () => { tip.classList.remove('on'); xhair.setAttribute('opacity', '0'); });
+
+  // tabla accesible
+  $('#season-table').innerHTML = `<table><thead><tr><th>Mes</th>${seasonal.map(s => `<th class="num">${s.kw}</th>`).join('')}</tr></thead>
+    <tbody>${smonths.map((m, i) => `<tr><td>${mlabel(m)}</td>${seasonal.map(s => `<td class="num">${fmt(s.series[i][1])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+})();
+$('#season-toggle').addEventListener('click', () => {
+  const t = $('#season-table');
+  t.classList.toggle('on');
+  const on = t.classList.contains('on');
+  $('#season-toggle').textContent = on ? 'Ocultar tabla' : 'Ver tabla';
+  $('#season-toggle').setAttribute('aria-expanded', on);
+});
+
+/* ---------- negativas ---------- */
+const NEGS = ['pickles comic', 'pickles pub', 'rugrats', 'claussen', "grillo's", 'vlasic', 'chamoy pickle',
+  'jellycat', 'picklesburgh', 'kool aid', 'fried pickles recipe', 'pickling cucumbers',
+  'how to make pickles', 'canning', 'walmart', 'india', 'uk', 'australia', 'in spanish'];
+$('#negs').innerHTML = NEGS.map(n => `<span class="neg">${n}</span>`).join('');
+const st = DATA.search_terms;
+const stCost = st.reduce((a, s) => a + s.cost, 0);
+$('#plastic-note').innerHTML = `<b>Hallazgo:</b> los términos de búsqueda históricos provienen solo de la campaña Search de <i>Jersey Plastic</i> (envases) — p. ej. "${st[0].term}", "${st[1].term}". Las campañas de pickles eran Performance Max, que no expone términos. Una campaña <b>Search de pickles</b> nos daría esa mina de datos.`;
+
+/* ---------- router de vistas ---------- */
+const IS_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+const VIEWS = { panel: $('#view-panel'), listings: $('#view-listings'), campaigns: $('#view-campaigns'), merchant: $('#view-merchant'), pixel: $('#view-pixel') };
+let mgrTimer = null;
+function route() {
+  const h = location.hash;
+  const v = h === '#listings' ? 'listings' : h === '#pixel' ? 'pixel' : h === '#campaigns' ? 'campaigns' : h === '#merchant' ? 'merchant' : 'panel';
+  for (const [k, el] of Object.entries(VIEWS)) el.hidden = k !== v;
+  document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.dataset.view === v));
+  if (mgrTimer) { clearInterval(mgrTimer); mgrTimer = null; }
+  if (v === 'listings') { loadPlan(); loadShoppingPlan(); }
+  if (v === 'pixel') loadPixel();
+  if (v === 'merchant') loadProducts();
+  if (v === 'campaigns') {
+    loadManager();
+    mgrTimer = setInterval(loadManager, 60000); // métricas en vivo cada minuto en pantalla
+  }
+}
+window.addEventListener('hashchange', route);
+
+/* ---------- gestor de campañas (estilo Meta) ---------- */
+const MGR = { level: 'camp', camp: null, group: null, store: null };
+
+MGR.range = localStorage.getItem('mgrRange') || '7d';
+document.querySelectorAll('#mgr-range .lvl-tab').forEach(b => {
+  b.classList.toggle('active', b.dataset.r === MGR.range);
+  b.addEventListener('click', () => {
+    MGR.range = b.dataset.r;
+    localStorage.setItem('mgrRange', MGR.range);
+    document.querySelectorAll('#mgr-range .lvl-tab').forEach(x => x.classList.toggle('active', x.dataset.r === MGR.range));
+    loadManager();
+  });
+});
+
+async function loadManager() {
+  if (!IS_LOCAL) { $('#mgr-out').innerHTML = '<div class="plan-empty">Disponible en la app local — http://localhost:8765</div>'; return; }
+  try {
+    MGR.store = await (await fetch('/api/campaigns?range=' + MGR.range)).json();
+    MGR.review = await (await fetch('/api/campaigns/review')).json();
+    MGR.lessons = (await (await fetch('/api/lessons')).json()).lessons || [];
+    MGR.applied = (await (await fetch('/api/actions/log')).json()).applied || [];
+  }
+  catch (e) { $('#mgr-out').innerHTML = '<div class="plan-empty">Sin conexión con el servidor local.</div>'; return; }
+  renderReview();
+  renderActionsInbox();
+  renderManager();
+  if (MGR.review && MGR.review.running && location.hash === '#campaigns')
+    setTimeout(loadManager, 10000);
+}
+
+function isApplied(a) {
+  return (MGR.applied || []).some(e => e.ok && e.action &&
+    e.action.tipo === a.tipo && e.action.campana === a.campana &&
+    (e.action.objetivo || '') === (a.objetivo || '') && (e.action.valor || 0) === (a.valor || 0));
+}
+const ACT_LABEL = {
+  pausar_keyword: '⏸ Pausar keyword', reactivar_keyword: '▶ Reactivar keyword',
+  añadir_negativa: '🚫 Negativa', ajustar_presupuesto: '💰 Presupuesto',
+  ajustar_tope_cpc: '🎚 Tope CPC',
+};
+function renderActionsInbox() {
+  const box = $('#actions-inbox');
+  const rev = MGR.review && MGR.review.review;
+  const acts = (rev && rev.acciones_propuestas) || [];
+  if (!acts.length) {
+    const retained = rev && rev.acciones_retenidas_learning;
+    const until = rev && rev.learning_until;
+    if (rev && (retained || until)) {
+      box.innerHTML = `<div class="plan-status" style="border-left:3px solid var(--accent)">
+        🎓 <b>Aprendizaje en curso — cero acciones por política.</b> Fable observa y anota, pero no propone
+        cambios hasta que las campañas cumplan 7 días de data${until ? ` (a partir del <b>${esc(until)}</b>)` : ''}.${
+        retained ? ` Tiene <b>${retained} observaciones retenidas</b> que re-evaluará entonces con datos completos.` : ''}</div>`;
+    } else box.innerHTML = '';
+    return;
+  }
+  const pending = acts.filter(a => !isApplied(a));
+  const applied = acts.length - pending.length;
+  if (!pending.length) {
+    box.innerHTML = applied ? `<p class="plan-meta" style="margin:0">✓ Las ${applied} acciones propuestas por Fable ya están aplicadas.</p>` : '';
+    return;
+  }
+  box.innerHTML = `<section class="card span-12" style="border-left:4px solid var(--warning)">
+    <div class="card-head">
+      <h2>⚙️ Bandeja de acciones — ${pending.length} pendiente${pending.length > 1 ? 's' : ''}</h2>
+      <span class="fable-badge">⚡ propuestas por Fable con evidencia</span>
+    </div>
+    <p class="note">Un clic en “Aplicar” y el cambio se ejecuta en Google Ads al instante. ${applied ? `✓ ${applied} ya aplicadas.` : ''}</p>
+    ${pending.map(a => {
+      const urg = { alta: 'health-critico', media: 'health-atencion', baja: 'health-ok' }[a.urgencia] || 'health-ok';
+      return `<div class="d-list-row" style="cursor:default;align-items:flex-start">
+        <span style="flex:1;min-width:0">
+          <span class="health-chip ${urg}">${esc(a.urgencia || '')}</span>
+          <b style="margin-left:7px">${ACT_LABEL[a.tipo] || esc(a.tipo)}</b>
+          ${a.objetivo ? ` · “${esc(a.objetivo)}”` : ''}${a.valor ? ` · $${a.valor}` : ''}
+          <span style="color:var(--muted)"> — ${esc(a.campana).replace('JP | Search | ', '').replace(' — US', '')}</span>
+          <br><small style="color:var(--ink-2)">${esc(a.razon || '')}</small></span>
+        <button class="row-view" data-apply='${esc(JSON.stringify(a))}'>Aplicar</button>
+      </div>`;
+    }).join('')}
+  </section>`;
+}
+
+$('#actions-inbox').addEventListener('click', async e => {
+  const b = e.target.closest('[data-apply]');
+  if (!b) return;
+  const a = JSON.parse(b.dataset.apply);
+  b.disabled = true; b.textContent = 'Aplicando…';
+  try {
+    const r = await (await fetch('/api/actions/apply', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ action: a }) })).json();
+    b.textContent = r.ok ? '✓ Aplicada' : '✕ ' + (r.msg || 'error').slice(0, 40);
+    if (r.ok) setTimeout(loadManager, 900);
+  } catch (err) { b.disabled = false; b.textContent = 'Reintentar'; }
+});
+
+$('#camp-review').addEventListener('click', async e => {
+  if (e.target.closest('#mem-toggle')) { window._memOpen = !window._memOpen; renderReview(); return; }
+  const b = e.target.closest('[data-apply]');
+  if (!b) return;
+  const a = JSON.parse(b.dataset.apply);
+  b.disabled = true; b.textContent = 'Aplicando…';
+  try {
+    const r = await (await fetch('/api/actions/apply', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ action: a }) })).json();
+    b.textContent = r.ok ? '✓ Aplicada' : '✕ ' + (r.msg || 'error').slice(0, 40);
+    if (r.ok) setTimeout(loadManager, 800);
+  } catch (err) { b.disabled = false; b.textContent = 'Reintentar'; }
+});
+
+let reviewOpen = false;
+function renderReview() {
+  const box = $('#camp-review');
+  const r = MGR.review || {};
+  const rev = r.review;
+  const cs = (MGR.store && MGR.store.campaigns) || [];
+  if (!cs.length || (!rev && !r.running && !r.error)) { box.innerHTML = ''; return; }
+
+  const shortName = n => n.replace(/^JP \| Search \| /, '').replace(/ — US$/, '');
+  const ICON = { ok: '✓', atencion: '⚠', critico: '✕' };
+  const chips = rev ? (rev.por_campana || []).map(pc =>
+    `<span class="health-chip health-${pc.salud}" title="${esc((pc.notas || [])[0] || '')}">${ICON[pc.salud] || ''} ${esc(shortName(pc.name))}</span>`).join('') : '';
+  const when = rev && rev._meta ? esc(rev._meta.generated_at).replace('T', ' ').slice(5, 16) : '';
+
+  let full = '';
+  if (reviewOpen && rev) {
+    full = `<section class="card span-12 review-full">
+      <h4 class="rev-h">Diagnóstico general</h4>
+      <p class="note" style="max-width:none;margin-top:2px">${esc(rev.resumen || '')}</p>
+
+      <h4 class="rev-h">Por campaña</h4>
+      <div class="rev-grid">
+        ${(rev.por_campana || []).map(pc => `<div class="rev-camp">
+          <div style="display:flex;gap:9px;align-items:center;margin-bottom:8px">
+            <span class="health-chip health-${pc.salud}">${pc.salud === 'ok' ? '✓ ok' : pc.salud}</span>
+            <b style="font-size:13px">${esc(pc.name).replace('JP | Search | ', '').replace(' — US', '')}</b></div>
+          <ul>${(pc.notas || []).map(n => `<li>${esc(n)}</li>`).join('')}</ul></div>`).join('')}
+      </div>
+
+      ${rev.recomendaciones && rev.recomendaciones.length ? `<h4 class="rev-h">Recomendaciones estratégicas</h4>
+        <ol class="rev-recs">${rev.recomendaciones.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
+
+      ${(MGR.lessons || []).length ? `<div style="border-top:1px dashed var(--grid-line);margin-top:16px;padding-top:12px">
+        <button class="row-view" id="mem-toggle">🧠 Memoria de Fable — ${MGR.lessons.length} lecciones ${window._memOpen ? '· ocultar' : '· ver'}</button>
+        <div ${window._memOpen ? '' : 'hidden'} style="margin-top:10px">
+          <ul style="margin:0;padding-left:18px;font-size:12.5px;color:var(--ink-2)">${[...MGR.lessons].reverse().slice(0, 8).map(l => `<li style="margin-bottom:6px"><span style="color:var(--muted)">(${esc(l.date)})</span> ${esc(l.lesson)}</li>`).join('')}</ul>
+        </div></div>` : ''}
+    </section>`;
+  }
+
+  box.innerHTML = `<div class="review-bar">
+      <span class="fable-badge">⚡ Fable</span>
+      ${chips}
+      ${r.running ? '<span style="color:var(--accent-ink)"><span class="pulse" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:5px"></span>releyendo…</span>' : ''}
+      ${r.error ? `<span style="color:var(--critical)">✕ error</span>` : ''}
+      ${(() => { const p = rev ? (rev.acciones_propuestas || []).filter(a => !isApplied(a)).length : 0;
+        return p ? `<span class="health-chip health-atencion">⚙ ${p} pendiente${p > 1 ? 's' : ''}</span>` : ''; })()}
+      <span class="rb-meta">${(MGR.lessons || []).length ? '🧠 ' + MGR.lessons.length + ' lecciones · ' : ''}${when ? 'lectura ' + when : ''}</span>
+      <button class="row-view" id="rb-toggle">${reviewOpen ? 'Ocultar' : 'Ver lectura'}</button>
+    </div>${full}`;
+  $('#rb-toggle').addEventListener('click', () => { reviewOpen = !reviewOpen; renderReview(); });
+}
+
+function renderManager() {
+  if (!MGR.store) return;
+  const cs = MGR.store.campaigns || [];
+  const allGroups = [];
+  cs.forEach(c => (c.ad_groups || []).forEach(g => allGroups.push({ c, g })));
+  const fGroups = allGroups.filter(x => !MGR.camp || x.c.id === MGR.camp);
+  const fAds = fGroups.filter(x => !MGR.group || x.g.id === MGR.group);
+
+  if (!['camp', 'group', 'ad'].includes(MGR.level)) MGR.level = 'camp';
+  $('#cnt-camp').textContent = cs.length;
+  $('#cnt-group').textContent = fGroups.length;
+  $('#cnt-ad').textContent = fAds.length;
+  document.querySelectorAll('#mgr-tabs .lvl-tab').forEach(t => t.classList.toggle('active', t.dataset.lvl === MGR.level));
+
+  let chips = '';
+  const campObj = cs.find(c => c.id === MGR.camp);
+  if (campObj) chips += `<span class="filter-chip">Campaña: ${esc(campObj.name)} <button data-clear="camp">✕</button></span> `;
+  const groupObj = allGroups.find(x => x.g.id === MGR.group);
+  if (groupObj) chips += `<span class="filter-chip">Grupo: ${esc(groupObj.g.name)} <button data-clear="group">✕</button></span>`;
+  $('#mgr-filter').innerHTML = chips;
+
+  if (!cs.length) {
+    $('#mgr-out').innerHTML = '<div class="plan-empty">Aún no hay campañas aceptadas.<br>Ve a <a href="#listings"><b>Listings</b></a> y pulsa <b>“✓ Aceptar listing”</b> en las que te convenzan.</div>';
+    return;
+  }
+
+  const mN = v => v == null ? '—' : fmt(Math.round(v));
+  const m$ = v => v == null ? '—' : '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const mPct = v => v == null ? '—' : v + '%';
+  const mRoas = m => (!m || m.roas == null || !m.value) ? '—' :
+    `<b style="color:${m.roas >= 1 ? 'var(--good-text)' : 'var(--critical)'}">${m.roas.toFixed(2)}x</b>`;
+  let html = '<section class="card span-12" style="padding:0;overflow:hidden"><div class="tablewrap"><table class="mgr-table">';
+  if (MGR.level === 'camp') {
+    html += `<thead><tr><th style="width:52px">Act.</th><th>Campaña</th><th>Estado</th><th>Fable</th><th class="num">Presup./día</th><th class="num">Impr.</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Coste</th><th class="num">Conv.</th><th class="num">Valor</th><th class="num">ROAS</th><th class="num">CPA</th><th></th></tr></thead><tbody>`;
+    const HICON = { ok: '✓ ok', atencion: '⚠', critico: '✕' };
+    for (const c of cs) {
+      const m = c.metrics || {};
+      const h = healthOf(c.name);
+      html += `<tr data-camp="${c.id}">
+        <td><button class="sw${c.enabled ? ' on' : ''}" data-id="${c.id}" title="Se lanzará activa o en pausa"></button></td>
+        <td><b>${esc(c.name)}</b> <span class="mtag ${c.type === 'SHOPPING' ? 'mtag-SHOP' : 'mtag-PHRASE'}" style="font-size:9.5px">${c.type === 'SHOPPING' ? '🛒 SHOPPING' : 'SEARCH'}</span><br><small style="color:var(--muted)">${c.type === 'SHOPPING' ? 'productos del Merchant' : esc(c.match_role || '')} · ${(c.ad_groups || []).length} grupos</small></td>
+        <td><span class="st-chip st-${c.status}">${c.status === 'DRAFT' ? 'Borrador' : 'En Google Ads'}</span>${(() => {
+          if (c.status !== 'LIVE' || !c.pushed_at) return '';
+          const days = Math.floor((Date.now() - new Date(c.pushed_at.replace(' ', 'T'))) / 86400000);
+          return days < 7 ? `<br><small style="color:var(--muted)">🎓 aprendizaje · día ${days + 1} de 7</small>` : '';
+        })()}</td>
+        <td>${h ? `<span class="health-chip health-${h.salud}" title="${esc((h.notas || [])[0] || '')}">${HICON[h.salud] || h.salud}</span>` : '—'}</td>
+        <td class="num">$${c.daily_budget_usd}</td>
+        <td class="num">${mN(m.impr)}</td><td class="num">${mN(m.clicks)}</td><td class="num">${mPct(m.ctr)}</td>
+        <td class="num">${m$(m.cost)}</td><td class="num">${mN(m.conv)}</td>
+        <td class="num">${m$(m.value)}</td><td class="num">${mRoas(m)}</td><td class="num">${m$(m.cpa)}</td>
+        <td style="white-space:nowrap"><button class="row-view" data-vt="camp" data-vc="${c.id}">Ver</button> <button class="row-del" data-del="${c.id}" title="Quitar del gestor">✕</button> <span class="drill">›</span></td></tr>`;
+    }
+  } else if (MGR.level === 'group') {
+    html += `<thead><tr><th>Grupo de anuncios</th><th>Campaña</th><th class="num">Kws</th><th class="num">Impr.</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Coste</th><th class="num">Conv.</th><th class="num">Valor</th><th class="num">ROAS</th><th></th></tr></thead><tbody>`;
+    for (const { c, g } of fGroups) {
+      const m = g.metrics || {};
+      html += `<tr data-camp="${c.id}" data-group="${g.id}">
+        <td><b>${esc(g.name)}</b></td><td>${esc(c.name).replace('JP | Search | ', '')}</td>
+        <td class="num">${c.type === 'SHOPPING' ? esc(g.products || '—') : (g.keywords || []).length}</td>
+        <td class="num">${mN(m.impr)}</td><td class="num">${mN(m.clicks)}</td><td class="num">${mPct(m.ctr)}</td>
+        <td class="num">${m$(m.cost)}</td><td class="num">${mN(m.conv)}</td>
+        <td class="num">${m$(m.value)}</td><td class="num">${mRoas(m)}</td>
+        <td style="white-space:nowrap"><button class="row-view" data-vt="group" data-vc="${c.id}" data-vg="${g.id}">Ver</button> <span class="drill">›</span></td></tr>`;
+    }
+  } else {
+    html += `<thead><tr><th>Anuncio</th><th>Grupo</th><th class="num">Impr.</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Coste</th><th class="num">Conv.</th><th class="num">Valor</th><th class="num">ROAS</th><th></th></tr></thead><tbody>`;
+    for (const { c, g } of fAds) {
+      const m = g.ad_metrics || {};
+      const creative = c.type === 'SHOPPING' ? (() => {
+        const its = g.items || [];
+        const thumbs = its.slice(0, 8).map(it =>
+          `<img src="${esc(it.img || '')}" title="${esc(it.title)}${it.agotadas ? ' · ' + it.agotadas + ' variante(s) agotada(s)' : ''}" style="width:34px;height:34px;border-radius:7px;object-fit:cover;border:1px solid var(--hairline);${it.agotadas >= it.variantes && it.variantes ? 'filter:grayscale(.7);opacity:.7;' : ''}" loading="lazy">`).join('');
+        return `<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">${thumbs}${its.length > 8 ? `<span class="mtag mtag-SHOP" style="font-size:10px">+${its.length - 8}</span>` : ''}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px"><span class="mtag mtag-SHOP" style="font-size:9px">🛒 SHOPPING</span> ${its.length} productos — Google arma el anuncio con foto, título y precio del feed</div>`;
+      })() : `<div class="h">${esc((g.headlines || []).slice(0, 3).join(' | '))}</div>
+          <div class="d">${esc((g.descriptions || [])[0] || '')}</div>`;
+      html += `<tr data-ad="1" data-camp-id="${c.id}" data-group-id="${g.id}">
+        <td class="ad-mini" style="white-space:normal;max-width:360px">${creative}</td>
+        <td>${esc(g.name)}</td>
+        <td class="num">${mN(m.impr)}</td><td class="num">${mN(m.clicks)}</td><td class="num">${mPct(m.ctr)}</td>
+        <td class="num">${m$(m.cost)}</td><td class="num">${mN(m.conv)}</td>
+        <td class="num">${m$(m.value)}</td><td class="num">${mRoas(m)}</td>
+        <td><button class="row-view" data-vt="ad" data-vc="${c.id}" data-vg="${g.id}">Ver</button></td></tr>`;
+    }
+  }
+  html += '</tbody></table></div></section>';
+  const RANGE_LBL = { today: 'hoy', yesterday: 'ayer', '7d': 'últimos 7 días', '14d': 'últimos 14 días', '30d': 'últimos 30 días' };
+  html += `<p class="plan-meta">Métricas del periodo: <b>${RANGE_LBL[MGR.range] || MGR.range}</b> · Act. = con el switch <b>encendido</b> la campaña se lanza ACTIVA al subirla; apagado, sube en pausa.</p>`;
+  $('#mgr-out').innerHTML = html;
+}
+
+document.querySelectorAll('#mgr-tabs .lvl-tab').forEach(t =>
+  t.addEventListener('click', () => { MGR.level = t.dataset.lvl; renderManager(); }));
+
+$('#mgr-filter').addEventListener('click', e => {
+  const b = e.target.closest('[data-clear]');
+  if (!b) return;
+  if (b.dataset.clear === 'camp') { MGR.camp = null; MGR.group = null; }
+  else MGR.group = null;
+  renderManager();
+});
+
+function findCamp(id) { return ((MGR.store || {}).campaigns || []).find(c => c.id === id); }
+function findGroup(cid, gid) { const c = findCamp(cid); return c ? { c, g: (c.ad_groups || []).find(g => g.id === gid) } : null; }
+function healthOf(name) {
+  const rev = MGR.review && MGR.review.review;
+  return rev ? (rev.por_campana || []).find(p => p.name === name) : null;
+}
+
+function openDrawer(html) {
+  $('#drawer').innerHTML = `<button class="d-close" title="Cerrar">✕</button>` + html;
+  document.body.classList.add('drawer-open');
+}
+function closeDrawer() { document.body.classList.remove('drawer-open'); }
+
+function drawerCampaign(c) {
+  const m = c.metrics || {};
+  const mN = v => v == null ? '—' : fmt(Math.round(v));
+  const m$ = v => v == null ? '—' : '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const h = healthOf(c.name);
+  openDrawer(`
+    <div class="camp-role"${c.type === 'SHOPPING' ? ' style="color:var(--shop-ink)"' : ''}>${c.type === 'SHOPPING' ? '🛒 SHOPPING · PRODUCTOS' : esc(c.match_role || '')}</div><h2>${esc(c.name)}</h2>
+    <div class="d-sub"><span class="st-chip st-${c.status}">${c.status === 'DRAFT' ? 'Borrador' : c.status}</span> · aceptada ${esc(c.accepted_at || '')} · ${c.enabled ? 'se lanzará activa' : 'se lanzará en pausa'}</div>
+    <div class="d-metrics">
+      <div class="d-metric"><div class="v">$${c.daily_budget_usd}</div><div class="l">Presup./día</div></div>
+      <div class="d-metric"><div class="v">${mN(m.impr)}</div><div class="l">Impresiones</div></div>
+      <div class="d-metric"><div class="v">${mN(m.clicks)}</div><div class="l">Clics</div></div>
+      <div class="d-metric"><div class="v">${m$(m.cost)}</div><div class="l">Coste</div></div>
+      <div class="d-metric"><div class="v">${mN(m.conv)}</div><div class="l">Conversiones</div></div>
+      <div class="d-metric"><div class="v">${m$(m.value)}</div><div class="l">Valor</div></div>
+      <div class="d-metric"><div class="v">${m.roas != null && m.value ? m.roas.toFixed(2) + 'x' : '—'}</div><div class="l">ROAS</div></div>
+      <div class="d-metric"><div class="v">${m$(m.cpa)}</div><div class="l">CPA</div></div>
+    </div>
+    ${c.status === 'DRAFT' ? '<p class="plan-meta" style="margin:0 0 4px">Las métricas se llenarán solas cuando la campaña esté en Google Ads.</p>' : ''}
+    <p class="note" style="max-width:none">${esc(c.objective || '')}</p>
+    ${c.budget_rationale ? `<div class="reason"><span class="zap">⚡</span><span><b>Fable calcula:</b> ${esc(c.budget_rationale)}</span></div>` : ''}
+    ${h ? `<div class="d-section"><h4>Lectura de Fable</h4>
+      <span class="health-chip health-${h.salud}">${h.salud === 'ok' ? '✓ ok' : h.salud}</span>
+      <ul style="margin:8px 0 0;padding-left:18px;font-size:13px">${(h.notas || []).map(n => `<li style="margin-bottom:4px">${esc(n)}</li>`).join('')}</ul></div>` : ''}
+    <div class="d-section"><h4>Grupos de anuncios (${(c.ad_groups || []).length})</h4>
+      ${(c.ad_groups || []).map(g => `<div class="d-list-row" data-open-camp="${c.id}" data-open-group="${g.id}"><span><b>${esc(g.name)}</b></span><span style="color:var(--muted)">${c.type === 'SHOPPING' ? esc(g.products || '') + ' · CPC $' + (g.cpc_bid_usd ?? '—') : (g.keywords || []).length + ' kws · 1 RSA'} ›</span></div>`).join('')}</div>
+    ${c.cross_negatives && c.cross_negatives.length ? `<div class="d-section"><h4>Negativas de flujo (${c.cross_negatives.length})</h4><div class="neg-chips">${c.cross_negatives.map(n => `<span class="neg">${esc(n)}</span>`).join('')}</div></div>` : ''}
+    ${c.type === 'SHOPPING' && (c.scaling_plan || []).length ? `<div class="d-section"><h4>📈 Hoja de escalado (${c.scaling_plan.length} fases)</h4>
+      ${c.scaling_plan.map((f, i) => `<div class="d-list-row" style="cursor:default"><span><b>${i + 1}. ${esc(f.fase || '')}</b><br><small style="color:var(--muted)">Cuándo: ${esc(f.cuando || '')}</small><br><small>${esc(f.accion || '')}</small></span></div>`).join('')}</div>` : ''}
+  `);
+}
+
+function drawerGroup(cid, gid) {
+  const x = findGroup(cid, gid);
+  if (!x || !x.g) return;
+  const { c, g } = x;
+  if (c.type === 'SHOPPING') {
+    const its = g.items || [];
+    openDrawer(`
+      <div class="camp-role" style="color:var(--shop-ink)">🛒 SHOPPING · ${esc(c.name)}</div><h2>${esc(g.name)}</h2>
+      <div class="d-sub">Grupo de productos · ${esc(g.products || '')} · CPC $${g.cpc_bid_usd ?? '—'}</div>
+      <p class="note" style="max-width:none">${esc(g.rationale || '')}</p>
+      ${its.length ? `<div class="d-section"><h4>Productos que anuncia (${its.length})</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px">
+        ${its.map(it => `<div style="display:flex;gap:8px;align-items:center;border:1px solid var(--hairline);border-radius:9px;padding:6px 8px;min-width:0">
+          ${it.img ? `<img src="${esc(it.img)}" style="width:36px;height:36px;border-radius:7px;object-fit:cover;flex:none;${it.agotadas >= it.variantes && it.variantes ? 'filter:grayscale(.7);opacity:.7;' : ''}" loading="lazy">` : '<span style="font-size:22px;flex:none">🥒</span>'}
+          <small style="line-height:1.3;min-width:0">${esc(it.title)}<br><span style="color:${it.agotadas ? 'var(--critical)' : 'var(--muted)'}">${it.variantes} var.${it.agotadas ? ' · ' + it.agotadas + ' agotada' + (it.agotadas > 1 ? 's' : '') : ''}</span></small>
+        </div>`).join('')}</div></div>` : ''}
+      <p class="plan-meta" style="margin-top:10px">En Shopping el anuncio lo arma Google con la foto, título y precio del feed — no hay RSA ni keywords; el control es por productos, pujas y negativas.</p>`);
+    return;
+  }
+  openDrawer(`
+    <div class="camp-role">${esc(c.name)}</div><h2>${esc(g.name)}</h2>
+    <div class="d-sub">${(g.keywords || []).length} keywords · ${(g.headlines || []).length} titulares · ${(g.descriptions || []).length} descripciones</div>
+    <p class="note" style="max-width:none">${esc(g.rationale || '')}</p>
+    <div class="d-section"><h4>Keywords</h4><div class="kwchips">${(g.keywords || []).map(k => `<span class="kwchip"><b>${esc(k.text)}</b><span class="mtag mtag-${k.match}">${k.match}</span></span>`).join('')}</div></div>
+    <div class="d-section"><h4>Así se verá el anuncio</h4>${adPreview(g)}</div>
+    <div class="d-section"><h4>Titulares · máx. 30 car.</h4><div class="hl-list">${(g.headlines || []).map(t => metered(t, 30)).join('')}</div></div>
+    <div class="d-section"><h4>Descripciones · máx. 90 car.</h4><div class="hl-list">${(g.descriptions || []).map(d => metered(d, 90)).join('')}</div></div>
+  `);
+}
+
+$('#drawer-overlay').addEventListener('click', closeDrawer);
+$('#drawer').addEventListener('click', e => {
+  if (e.target.closest('.d-close')) { closeDrawer(); return; }
+  const r = e.target.closest('[data-open-group]');
+  if (r) drawerGroup(r.dataset.openCamp, r.dataset.openGroup);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+$('#mgr-out').addEventListener('click', async e => {
+  const sw = e.target.closest('.sw');
+  if (sw) {
+    e.stopPropagation();
+    const on = !sw.classList.contains('on');
+    sw.classList.toggle('on', on);
+    await fetch('/api/campaigns/toggle', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: sw.dataset.id, enabled: on }) });
+    return;
+  }
+  const del = e.target.closest('.row-del');
+  if (del) {
+    e.stopPropagation();
+    if (!confirm('¿Quitar esta campaña del gestor? (el listing seguirá en Listings)')) return;
+    await fetch('/api/campaigns/delete', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: del.dataset.del }) });
+    loadManager();
+    return;
+  }
+  const vw = e.target.closest('.row-view');
+  if (vw) {
+    e.stopPropagation();
+    if (vw.dataset.vt === 'camp') { const c = findCamp(vw.dataset.vc); if (c) drawerCampaign(c); }
+    else drawerGroup(vw.dataset.vc, vw.dataset.vg);
+    return;
+  }
+  const adRow = e.target.closest('tr[data-ad]');
+  if (adRow) { drawerGroup(adRow.dataset.campId, adRow.dataset.groupId); return; }
+  const row = e.target.closest('tr[data-camp]');
+  if (row) {
+    MGR.camp = row.dataset.camp;
+    if (row.dataset.group) { MGR.group = row.dataset.group; MGR.level = 'ad'; }
+    else { MGR.group = null; MGR.level = 'group'; }
+    renderManager();
+  }
+});
+
+/* ---------- sub-pestañas del Panel (adiós al scroll infinito) ---------- */
+const PANEL_TABS = {
+  vivo: ['#live-strip', '#live-extra'],
+  research: ['#kpis', '#watch-card', '#card-opps'],
+  season: ['#card-season', '#card-clean'],
+};
+let productsDays = '365';
+async function loadProducts() {
+  const out = $('#products-out');
+  if (!IS_LOCAL) { out.innerHTML = '<div class="plan-empty">Disponible en la app local.</div>'; return; }
+  try {
+    const j = await (await fetch('/api/products?days=' + productsDays)).json();
+    const ps = j.products || [];
+    if (!ps.length) { out.innerHTML = '<div class="plan-empty">Sin datos de productos en este periodo.</div>'; return; }
+    const totConv = ps.reduce((a, p) => a + p.conv, 0), totVal = ps.reduce((a, p) => a + p.value, 0);
+    const totCost = ps.reduce((a, p) => a + p.cost, 0);
+    const iss = j.issues || [], oos = j.sin_stock || [];
+    const stockFoot = p => {
+      const vs = p.variantes || [];
+      // número solo cuando el stock es finito y bajo — los inventarios "ilimitados" de Shopify son ruido
+      const qtyTxt = q => q == null ? '' : q <= 0 ? ' · agotada' : q <= 200 ? ' · ' + q : '';
+      if (vs.length) return `<div class="prod-vars">${vs.map(v =>
+        `<span class="pvar ${v.qty == null ? 'pv-na' : v.qty > 0 ? 'pv-ok' : 'pv-out'}${v.own ? ' pv-own' : ''}" title="${v.own ? 'esta card anuncia esta variante' : ''}">${esc(v.t === 'Default Title' ? 'única' : v.t)}${qtyTxt(v.qty)}</span>`).join('')}</div>`;
+      if (p.en_tienda) return '<div class="prod-foot pf-ok"><span class="pstock-dot"></span>En tienda</div>';
+      return '<div class="prod-foot pf-off"><span class="pstock-dot"></span>Fuera de catálogo</div>';
+    };
+    out.innerHTML = `
+      <div class="live-strip" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr))">
+        <div class="live-tile neutral"><div class="lt-head">Productos anunciados</div><div class="big">${ps.length}</div></div>
+        <div class="live-tile neutral"><div class="lt-head">Conversiones</div><div class="big">${fmt(Math.round(totConv))}</div></div>
+        <div class="live-tile neutral"><div class="lt-head">Valor generado</div><div class="big">$${fmt(Math.round(totVal))} <small>${totCost ? (totVal / totCost).toFixed(1) + 'x ROAS' : ''}</small></div></div>
+        <div class="live-tile" style="border-left-color:${oos.length ? '#d97706' : 'var(--good)'}" title="${oos.map(s => s.title).join(' · ')}">
+          <div class="lt-head">Sin stock en tienda</div><div class="big">${oos.length} <small>producto${oos.length === 1 ? '' : 's'}</small></div>
+          ${oos.length ? `<div class="lesson-mini">${oos.slice(0, 3).map(s => esc(s.title)).join(' · ')}${oos.length > 3 ? ` · +${oos.length - 3} más` : ''}</div>` : ''}
+        </div>
+      </div>
+      ${iss.length ? (() => {
+        const by = {};
+        iss.forEach(i => (i.issues && i.issues.length ? i.issues : ['(sin detalle)'])
+          .forEach(d => (by[d] = by[d] || []).push(i.title)));
+        const tipos = Object.entries(by).sort((a, b) => b[1].length - a[1].length);
+        return `<details class="plan-dtl" style="border:1px solid var(--hairline);border-left:4px solid var(--warning);border-radius:12px;background:var(--card);box-shadow:var(--shadow);padding:0 16px;margin-bottom:16px">
+          <summary><span class="chev">▶</span>⚠ ${iss.length} productos con avisos del feed<span class="chip">${tipos.length} tipo${tipos.length === 1 ? '' : 's'} de issue</span></summary>
+          <div class="dtl-body">
+            ${tipos.map(([d, ts]) => `<div class="d-list-row" style="cursor:default;align-items:flex-start"><span style="min-width:0"><b>${esc(d)}</b> <small style="color:var(--muted)">×${ts.length}</small><br>
+              <small style="color:var(--muted)">${ts.slice(0, 6).map(esc).join(' · ')}${ts.length > 6 ? ` · +${ts.length - 6} más` : ''}</small></span></div>`).join('')}
+            <p class="plan-meta" style="margin-top:8px">Los avisos de imagen del feed nuevo suelen resolverse solos en horas. Color y talla de los shirts ya van en el feed — pendientes de re-revisión de Google.</p>
+          </div>
+        </details>`;
+      })() : ''}
+      <div class="prod-grid">${ps.slice(0, 24).map(p => `
+        <div class="prod-card${p.agotado ? ' oos' : ''}">
+          ${p.img ? `<img class="prod-img" src="${esc(p.img)}" alt="" loading="lazy">`
+                  : '<div class="prod-img prod-noimg">🥒</div>'}
+          ${p.roas >= 20 ? '<span class="prod-star">⭐ estrella</span>' : ''}
+          ${p.agotado ? '<span class="prod-oos">sin stock</span>' : ''}
+          <div class="prod-body">
+            <div class="prod-title">${esc(p.title.replace(/^Buy /, '').replace(/ Online.*$/, ''))}</div>
+            <div class="prod-roas" style="color:${p.roas >= 1 ? 'var(--good-text)' : 'var(--critical)'}">${p.roas != null ? p.roas + 'x' : '—'} <small>ROAS</small></div>
+            <div class="prod-stats">${p.conv} conv · $${p.cost.toFixed(0)} → $${fmt(Math.round(p.value))}</div>
+          </div>
+          ${stockFoot(p)}
+        </div>`).join('')}</div>`;
+  } catch (e) { out.innerHTML = '<div class="plan-empty">Error cargando el catálogo.</div>'; }
+}
+document.querySelectorAll('#view-merchant [data-pd]').forEach(b =>
+  b.addEventListener('click', () => {
+    productsDays = b.dataset.pd;
+    document.querySelectorAll('#view-merchant [data-pd]').forEach(x => x.classList.toggle('active', x.dataset.pd === productsDays));
+    loadProducts();
+  }));
+let currentPanelTab = localStorage.getItem('panelTab') || 'vivo';
+function applyPanelTab() {
+  const all = [...new Set(Object.values(PANEL_TABS).flat())];
+  all.forEach(sel => { const el = $(sel); if (el) el.classList.add('pt-hide'); });
+  (PANEL_TABS[currentPanelTab] || []).forEach(sel => { const el = $(sel); if (el) el.classList.remove('pt-hide'); });
+  document.querySelectorAll('#panel-tabs .lvl-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.pt === currentPanelTab));
+}
+document.querySelectorAll('#panel-tabs .lvl-tab').forEach(b =>
+  b.addEventListener('click', () => {
+    currentPanelTab = b.dataset.pt;
+    localStorage.setItem('panelTab', currentPanelTab);
+    applyPanelTab();
+  }));
+applyPanelTab();
+
+/* ---------- pulso en vivo del Panel ---------- */
+let pulseDeadline = null;
+async function loadPulse() {
+  if (!IS_LOCAL) return;
+  try { renderPulse(await (await fetch('/api/pulse')).json()); } catch (e) {}
+}
+function fmtDur(s) {
+  if (s == null) return '—';
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return h ? `${h}h ${m}m` : `${m}m ${String(sec).padStart(2, '0')}s`;
+}
+function renderPulse(p) {
+  const strip = $('#live-strip');
+  if (!p.live || !p.live.length) { strip.hidden = true; return; }
+
+  const F = p.funnel_today || {};
+  const val = frag => Object.entries(F).filter(([k]) => k.includes(frag)).reduce((a, [, v]) => a + v, 0);
+  const buys = F['Jersey Pickles <> AdNabu'] || 0;
+  const atc = val('Add to Cart'), chk = val('Begin Checkout');
+  const clicksToday = p.live.reduce((a, c) => a + c.clicks, 0);
+
+  let html = p.live.map(c => {
+    const ex = (c.role || '').toUpperCase().startsWith('EXACT');
+    return `<div class="live-tile${ex ? '' : ' phrase'}">
+      <div class="lt-head"><span class="live-dot"></span>${ex ? 'EXACT · CONTROL' : 'PHRASE · DISCOVERY'} — HOY</div>
+      <div class="big">$${c.cost.toFixed(2)} <small>de $${c.budget}</small></div>
+      <div class="live-row"><span>${fmt(c.impr)} impr</span><span><b>${c.clicks}</b> clics</span><span>CPC $${c.cpc.toFixed(2)}</span><span><b>${c.conv}</b> compras</span></div>
+    </div>`;
+  }).join('');
+
+  html += `<div class="live-tile neutral">
+    <div class="lt-head"><span class="live-dot"></span>Funnel de hoy (pixel AdNabu)</div>
+    <div class="funnel-steps">
+      <div class="fstep"><b>${clicksToday}</b><small>clics</small></div><span class="farr">→</span>
+      <div class="fstep"><b>${atc}</b><small>carrito</small></div><span class="farr">→</span>
+      <div class="fstep"><b>${chk}</b><small>pago</small></div><span class="farr">→</span>
+      <div class="fstep" style="color:${buys > 0 ? 'var(--good-text)' : 'inherit'}"><b>${buys}</b><small>compras</small></div>
+    </div></div>`;
+
+  const fb = p.fable || {};
+  pulseDeadline = fb.next_review_s != null ? Date.now() + fb.next_review_s * 1000 : null;
+  const lastLesson = (fb.last_lessons || [])[0];
+  html += `<div class="live-tile" style="border-left-color:var(--accent)">
+    <div class="lt-head"><span class="live-dot"></span>Fable — vivo y aprendiendo</div>
+    <div class="hb-line">${fb.review_running || fb.plan_running ? '<b>⚡ analizando ahora mismo…</b>' :
+      `última lectura hace <b>${fmtDur(fb.review_age_s)}</b> · próxima en <b id="pulse-cd">${fmtDur(fb.next_review_s)}</b>`}<br>
+      🧠 <b>${fb.lessons_total}</b> lecciones acumuladas</div>
+    ${lastLesson ? `<div class="lesson-mini">Última lección: “${esc(lastLesson.lesson.slice(0, 110))}${lastLesson.lesson.length > 110 ? '…' : ''}”</div>` : ''}
+  </div>`;
+  strip.innerHTML = html;
+  strip.hidden = false;
+
+  // señal en vivo → columna "⚡ En vivo 7d" de la tabla de oportunidades
+  window._pulseKws = new Map((p.keywords_7d || []).map(k => [k.kw, k]));
+  if (typeof renderTable === 'function') renderTable();
+
+  // keywords en vivo + competencia
+  const extra = $('#live-extra');
+  let ex2 = '';
+  if (p.keywords_7d && p.keywords_7d.length) {
+    ex2 += `<section class="card span-12" style="margin-bottom:18px">
+      <div class="card-head"><h2>Keywords en combate (7 días)</h2><span class="chip">EXACT + PHRASE en vivo</span></div>
+      <div class="tablewrap"><table><thead><tr><th>Keyword</th><th>Grupo</th><th class="num">Impr.</th><th class="num">Clics</th><th class="num">Coste</th><th class="num">Compras</th></tr></thead>
+      <tbody>${p.keywords_7d.slice(0, 12).map(k => `<tr><td><b>${esc(k.kw)}</b></td><td>${esc(k.grupo)}</td>
+        <td class="num">${fmt(k.impr)}</td><td class="num">${k.clics}</td><td class="num">$${k.coste.toFixed(2)}</td>
+        <td class="num" style="${k.conv > 0 ? 'color:var(--good-text);font-weight:700' : ''}">${k.conv}</td></tr>`).join('')}</tbody></table></div>
+      ${p.terms_7d && p.terms_7d.length ? `<p class="mini-title" style="margin-top:14px">Lo que la gente escribió de verdad</p>
+      <div class="term-chips">${p.terms_7d.map(t => `<span class="term-chip">${esc(t.termino)} <b>${t.clics > 0 ? t.clics + ' clic' + (t.clics > 1 ? 's' : '') : t.impr + ' impr'}</b></span>`).join('')}</div>` : ''}
+    </section>`;
+  }
+  if (p.competitors && p.competitors.length) {
+    const totComp = p.competitors.reduce((a, c) => a + c.vol, 0);
+    ex2 += `<section class="card span-12" style="margin-bottom:18px">
+      <div class="card-head"><h2>La competencia — demanda que podemos capturar</h2><span class="fable-badge">⚡ radar de conquista</span></div>
+      <p class="note">La gente busca a tus competidores <b>${fmt(totComp)} veces al mes</b>. Cuando los datos de tus campañas maduren, Fable valorará una campaña de conquista para salir en esas búsquedas con tu propuesta (artesanal, NJ, envío fresco).</p>
+      ${p.competitors.map(c => `<div class="comp-row"><span>${esc(c.kw)}</span>
+        <span style="display:flex;gap:14px"><span class="vol">${fmt(c.vol)}/mes</span><span style="color:var(--muted)">puja $${c.low.toFixed(2)}–$${c.high.toFixed(2)}</span></span></div>`).join('')}
+    </section>`;
+  }
+  extra.innerHTML = ex2;
+}
+setInterval(() => {
+  const el = $('#pulse-cd');
+  if (el && pulseDeadline) {
+    const s = Math.max(0, Math.round((pulseDeadline - Date.now()) / 1000));
+    el.textContent = fmtDur(s);
+  }
+}, 1000);
+loadPulse();
+setInterval(loadPulse, 60000);
+
+/* ---------- el vigía de Fable (Panel) ---------- */
+async function loadWatch() {
+  if (!IS_LOCAL) return;
+  try {
+    const j = await (await fetch('/api/watch')).json();
+    if (!j.watch) return;
+    const w = j.watch;
+    const group = (title, arrow, color, items) => !items || !items.length ? '' :
+      `<div style="margin-top:10px"><h4 style="margin:0 0 6px;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">${title}</h4>
+       <div class="kwchips">${items.map(i =>
+         `<span class="kwchip" title="${esc(i.nota || '')}"><span style="color:${color};font-weight:700">${arrow}</span><b>${esc(i.kw)}</b></span>`).join('')}</div></div>`;
+    let html = `<p class="note" style="max-width:none;margin-bottom:4px">${esc(w.resumen || '')}</p>`;
+    html += group('Subiendo', '▲', 'var(--good-text)', w.subiendo);
+    html += group('Bajando', '▼', 'var(--critical)', w.bajando);
+    html += group('Nuevas por los lados', '✚', 'var(--s1)', w.nuevas_laterales);
+    if (w.semillas_nuevas && w.semillas_nuevas.length)
+      html += `<div style="margin-top:10px"><h4 style="margin:0 0 6px;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">Explorará mañana</h4>
+        <div class="kwchips">${w.semillas_nuevas.map(s => `<span class="kwchip"><span style="color:var(--accent-ink);font-weight:700">🌱</span><b>${esc(s)}</b></span>`).join('')}</div></div>`;
+    if (w.acciones && w.acciones.length)
+      html += `<div class="callout" style="margin-top:14px"><b>Acciones sugeridas:</b><ol style="margin:6px 0 0;padding-left:20px">${w.acciones.map(a => `<li style="margin-bottom:4px">${esc(a)}</li>`).join('')}</ol></div>`;
+    if (w._meta) html += `<p class="plan-meta">Observado por ${esc(w._meta.model)} · ${esc(w._meta.generated_at)} · se re-analiza solo con cada ciclo de datos</p>`;
+    $('#watch-out').innerHTML = html;
+    $('#watch-card').hidden = false;
+  } catch (e) { /* sin servidor local: la tarjeta queda oculta */ }
+}
+loadWatch();
+
+/* ---------- salud del pixel ---------- */
+async function loadPixel() {
+  const out = $('#pixel-out');
+  if (!IS_LOCAL) { out.innerHTML = '<div class="plan-empty">Disponible en la app local — http://localhost:8765</div>'; return; }
+  try {
+    const j = await (await fetch('/api/pixel')).json();
+    if (!j.ok) { out.innerHTML = `<div class="plan-empty">✕ Error consultando la API: ${esc(j.error || '')}</div>`; return; }
+    const h = j.health;
+    const LEVEL = { critical: ['✕', 'var(--critical)'], warning: ['⚠', '#8a6400'], info: ['●', 'var(--accent-ink)'] };
+    let html = '';
+
+    html += `<section class="card span-12" style="margin-bottom:18px"><h2>Alertas</h2>`;
+    if (!h.alerts.length) html += `<p class="note">Sin alertas — configuración sana.</p>`;
+    for (const a of h.alerts) {
+      const [icon, color] = LEVEL[a.level] || LEVEL.info;
+      html += `<div class="callout${a.level === 'critical' ? ' warn' : ''}" style="margin-top:10px"><b style="color:${color}">${icon} ${a.level.toUpperCase()}</b> — ${esc(a.msg)}</div>`;
+    }
+    html += `</section>`;
+
+    html += `<section class="card span-12" style="margin-bottom:18px">
+      <h2>Acciones primarias ahora mismo</h2>
+      <p class="note">Estas son las que cuentan como "conversión" y guían al Smart Bidding. Deberían ser solo las compras (AdNabu para pickles, jerseyplastic.com para envases) más llamadas/direcciones.</p>
+      <div class="kwchips">${h.primaries.map(p =>
+        `<span class="kwchip"><b>${esc(p.name)}</b><span class="mtag ${p.category === 'PURCHASE' ? 'mtag-EXACT' : 'mtag-BROAD'}">${esc(p.category)}</span></span>`).join('')}</div>
+    </section>`;
+
+    html += `<section class="card span-12">
+      <h2>Registrado en los últimos 30 días</h2>
+      <p class="note">${fmt(h.clicks_30d)} clics de anuncios en el periodo. Sin tráfico de anuncios no se atribuyen conversiones, aunque el tag dispare.</p>`;
+    if (!h.recent.length) html += `<p class="note"><i>Ninguna acción registró conversiones en 30 días (esperado con campañas pausadas).</i></p>`;
+    else html += `<div class="tablewrap"><table><thead><tr><th>Acción</th><th class="num">Conversiones</th><th class="num">Valor</th></tr></thead>
+      <tbody>${h.recent.map(r => `<tr><td>${esc(r.name)}</td><td class="num">${r.conv}</td><td class="num">$${fmt(Math.round(r.value))}</td></tr>`).join('')}</tbody></table></div>`;
+    html += `</section><p class="plan-meta">Última comprobación: ${esc(h.checked_at)} · se refresca cada hora</p>`;
+
+    out.innerHTML = html;
+  } catch (e) {
+    out.innerHTML = '<div class="plan-empty">No se pudo conectar con el servidor local.</div>';
+  }
+}
+
+/* ---------- listings: plan de campañas con Fable ---------- */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let planTimer = null;
+
+async function loadPlan() {
+  if (!IS_LOCAL) {
+    $('#btn-generate').disabled = true;
+    $('#plan-out').innerHTML = '<div class="plan-empty">Los listings con Fable viven en la app local — abre <b>http://localhost:8765</b> en tu Mac.</div>';
+    return;
+  }
+  try {
+    try {
+      const s = await (await fetch('/api/campaigns')).json();
+      window._accepted = new Map((s.campaigns || []).map(c => [c.name, c.status]));
+      window._storeCamps = s.campaigns || [];
+    } catch (e) { window._accepted = new Map(); }
+    const j = await (await fetch('/api/plan')).json();
+    const st = $('#plan-status');
+    if (j.running) {
+      // progreso desde la hora real del servidor: sobrevive refresh del navegador
+      const mins = j.started_at ? Math.max(0, Date.now() / 1000 - j.started_at) / 60
+                                : ((window._thinkStart ||= Date.now()), (Date.now() - window._thinkStart) / 60000);
+      const STAGES = [
+        'Leyendo keywords validadas, tendencias y CPCs reales',
+        'Agrupando por tema e intención de compra',
+        'Separando campañas EXACT (control) y PHRASE (descubrimiento)',
+        'Escribiendo titulares y descripciones RSA en inglés',
+        'Calculando presupuestos con los CPCs de la API',
+        'Auditándose a sí mismo y corrigiendo lo que encuentre',
+      ];
+      const idx = Math.min(STAGES.length - 1, Math.floor(mins / 1.6));
+      const steps = STAGES.map((s, i) =>
+        `<div class="tstep ${i < idx ? 'done' : i === idx ? 'on' : ''}"><span class="tdot"></span>${i < idx ? '✓ ' : ''}${s}</div>`).join('');
+      if (!j.plan) {
+        st.hidden = true;
+        $('#plan-out').innerHTML = `<div class="think-panel">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="fable-badge">⚡ Fable 5</span><b style="font-size:15px">Fable está pensando tu plan…</b></div>
+          <div class="tsteps">${steps}</div>
+          <p class="plan-meta" style="margin-top:14px">Suele tardar 3–6 minutos. Puedes seguir usando el panel — esta vista se actualiza sola.</p></div>`;
+      } else {
+        st.hidden = false;
+        st.innerHTML = '<span class="pulse"></span><b>Regenerando…</b> el plan actual sigue abajo hasta que llegue el nuevo.';
+      }
+      $('#btn-generate').disabled = true;
+      if (!planTimer) planTimer = setInterval(loadPlan, 8000);
+    } else {
+      window._thinkStart = null;
+      $('#btn-generate').disabled = false;
+      if (planTimer) { clearInterval(planTimer); planTimer = null; }
+      if (j.error) { st.hidden = false; st.innerHTML = '✕ Error al generar: ' + esc(j.error); }
+      else st.hidden = true;
+    }
+    if (j.plan) renderPlan(j.plan);
+    else if (!j.running) $('#plan-out').innerHTML =
+      '<div class="plan-empty">Aún no hay plan. Pulsa <b>“Generar plan con Fable”</b> y el modelo diseñará tus campañas a partir de los datos reales del panel.</div>';
+  } catch (e) {
+    $('#plan-out').innerHTML = '<div class="plan-empty">No se pudo conectar con el servidor local.</div>';
+  }
+}
+
+function metered(text, limit) {
+  const n = text.length, pct = Math.min(100, n / limit * 100);
+  return `<span class="hl-pill${n > limit ? ' over' : ''}">${esc(text)}<span class="cc" style="margin-left:7px">${n}</span><span class="meter" style="width:${pct}%"></span></span>`;
+}
+function adPreview(g) {
+  const h = (g.headlines || []).slice(0, 3).join(' | ');
+  const d = (g.descriptions || [])[0] || '';
+  return `<div class="adpreview">
+    <div class="urlrow"><span class="fav">🥒</span><div class="site"><span class="sp">Sponsored</span><small>jerseypickles.com</small></div></div>
+    <div class="headline">${esc(h)}</div><div class="desc">${esc(d)}</div></div>`;
+}
+
+function renderPlan(p) {
+  const camps = p.campaigns || [];
+  const isExact = c => (c.match_role || '').toUpperCase().startsWith('EXACT');
+  let html = '';
+
+  // --- estrategia + diagrama de flujo ---
+  const acc = window._accepted || new Map();
+  const allIn = camps.length && camps.every(c => acc.has(c.name));
+  const anyLive = camps.some(c => acc.get(c.name) === 'LIVE');
+  html += `<section class="card span-12" style="margin-bottom:18px">
+    <div class="card-head"><h2>La estrategia de Fable</h2>
+      <span style="display:flex;gap:10px;align-items:center"><span class="fable-badge">⚡ razonada con tus datos</span>
+      ${allIn ? '<button class="accept-btn done">✓ Todo en Campañas</button>'
+              : '<button class="accept-btn" data-accept="*">✓ Aceptar todo el plan</button>'}</span></div>
+    ${allIn ? `<p class="plan-meta" style="margin:2px 0 10px">Este plan ya vive en el gestor${anyLive ? ' — y parte está en Google Ads' : ''}. Si generas uno nuevo, Fable propondrá <b>mejoras incrementales</b>: recuerda lo aprendido, lo aceptado y lo ya lanzado — no repite.</p>` : ''}
+    <p class="note" style="max-width:none">${esc(p.strategy_summary)}</p>`;
+  if (camps.length >= 2) {
+    const cx = camps.find(isExact), cp = camps.find(c => !isExact(c));
+    html += `<div class="flow">
+      <div class="fnode"><b>Búsqueda del cliente</b>escribe p. ej. “dill pickles” en Google</div>
+      <div class="farrow">→<small>término<br>exacto</small></div>
+      <div class="fnode exact"><b>${esc(cx ? cx.name : 'Campaña EXACT')}</b>control total de puja y término</div>
+      <div class="farrow">→<small>variantes<br>nuevas</small></div>
+      <div class="fnode phrase"><b>${esc(cp ? cp.name : 'Campaña PHRASE')}</b>descubre long-tail — lo exacto está bloqueado aquí con negativas</div>
+    </div>
+    <div class="flow-return">↻ cada semana: los términos ganadores de PHRASE se promueven a EXACT</div>`;
+  }
+  const total = camps.reduce((a, c) => a + (c.daily_budget_usd || 0), 0);
+  if (total) {
+    html += `<div style="margin-top:16px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h4 style="margin:0;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">Inversión diaria total</h4>
+        <b style="font-size:19px">$${total}/día</b></div>
+      <div class="budget-strip">${camps.map(c => `<div class="${isExact(c) ? 'seg-exact' : 'seg-phrase'}" style="width:${(c.daily_budget_usd / total * 100).toFixed(1)}%"></div>`).join('')}</div>
+      <div class="budget-legend">${camps.map(c => `<span><span class="dot" style="background:${isExact(c) ? 'var(--accent)' : 'var(--s1)'}"></span>${esc(c.name)} · $${c.daily_budget_usd}/día</span>`).join('')}</div></div>`;
+  }
+  html += `</section>`;
+
+  // --- campañas ---
+  for (const c of camps) {
+    const ex = isExact(c);
+    html += `<section class="card camp-card" style="margin-bottom:18px">
+      <div class="camp-band${ex ? '' : ' phrase'}">
+        <div><div class="camp-role">${esc(c.match_role || '')}</div><h2>${esc(c.name)}</h2></div>
+        <div style="display:flex;align-items:center;gap:16px">
+          ${acc.get(c.name) === 'LIVE'
+            ? '<button class="accept-btn done">⚡ En Google Ads — activa</button>'
+            : acc.has(c.name)
+              ? '<button class="accept-btn done">✓ En Campañas</button>'
+              : `<button class="accept-btn" data-accept="${esc(c.name)}">✓ Aceptar listing</button>`}
+          <div class="camp-budget"><div class="num">$${c.daily_budget_usd}</div><small>por día</small></div>
+        </div>
+      </div>
+      <div class="camp-body">
+        <p class="note">${esc(c.objective)}</p>
+        ${c.budget_rationale ? `<div class="reason"><span class="zap">⚡</span><span><b>Fable calcula:</b> ${esc(c.budget_rationale)}</span></div>` : ''}
+        <div class="ag-grid">
+          ${(c.ad_groups || []).map(g => `<div class="adgroup">
+            <h3>${esc(g.name)}</h3>
+            <p class="note why">${esc(g.rationale)}</p>
+            <div class="kwchips">${(g.keywords || []).map(k => `<span class="kwchip"><b>${esc(k.text)}</b><span class="mtag mtag-${k.match}">${k.match}</span></span>`).join('')}</div>
+            ${adPreview(g)}
+            <div class="assets">
+              <h5>Titulares (${(g.headlines || []).length}) · máx. 30 car.</h5>
+              <div class="hl-list">${(g.headlines || []).map(h => metered(h, 30)).join('')}</div>
+              <h5>Descripciones (${(g.descriptions || []).length}) · máx. 90 car.</h5>
+              <div class="hl-list">${(g.descriptions || []).map(d => metered(d, 90)).join('')}</div>
+            </div>
+          </div>`).join('')}
+        </div>
+        ${c.cross_negatives && c.cross_negatives.length ? `<div class="adgroup" style="border-style:dashed;margin-top:14px">
+          <h3>Bloqueo de flujo — negativas de esta campaña</h3>
+          <p class="note why">Las búsquedas exactas no entran aquí: van directas a la campaña de control.</p>
+          <div class="neg-chips">${c.cross_negatives.map(n => `<span class="neg">${esc(n)}</span>`).join('')}</div></div>` : ''}
+      </div>
+    </section>`;
+  }
+
+  // --- negativas globales + pasos ---
+  html += `<section class="card span-12" style="margin-top:18px"><h2>Negativas del plan</h2>
+    <p class="note">Se añadirán a nivel de campaña al crearlas.</p>
+    <div class="neg-chips">${(p.negatives || []).map(n => `<span class="neg">${esc(n)}</span>`).join('')}</div></section>`;
+
+  html += `<section class="card span-12" style="margin-top:18px"><h2>El plan de vuelo tras el lanzamiento</h2>
+    <ul class="steps-list">${(p.next_steps || []).map(s => `<li>${esc(s)}</li>`).join('')}</ul></section>`;
+
+  if (p._meta) {
+    const sr = p._meta.self_review_rounds;
+    html += `<p class="plan-meta">Generado por <b>${esc(p._meta.model)}</b> (${esc(p._meta.engine)}) · ${esc(p._meta.generated_at)}${
+      sr != null ? ` · <b style="color:var(--accent-ink)">se auto-auditó${sr > 0 ? ` y corrigió ${sr} ronda${sr > 1 ? 's' : ''}` : ': sin fallos'}</b>` : ''}</p>`;
+  }
+
+  $('#plan-out').innerHTML = html;
+}
+
+$('#plan-out').addEventListener('click', async e => {
+  const b = e.target.closest('[data-accept]');
+  if (!b || b.classList.contains('done')) return;
+  b.disabled = true; b.textContent = 'Aceptando…';
+  const body = b.dataset.accept === '*' ? {} : { name: b.dataset.accept };
+  await fetch('/api/campaigns/accept', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+  await loadPlan();
+});
+
+if ($('#btn-generate')) $('#btn-generate').addEventListener('click', async () => {
+  $('#btn-generate').disabled = true;
+  try { await fetch('/api/plan/generate', { method: 'POST' }); } catch (e) {}
+  loadPlan();
+});
+
+/* ---------- En marcha: todas las campañas aceptadas, arriba de Listings ---------- */
+function renderEnMarcha() {
+  const el = $('#live-list');
+  if (!el) return;
+  const cs = window._storeCamps || [];
+  if (!cs.length) { el.innerHTML = ''; return; }
+  const learn = c => {
+    if (c.status !== 'LIVE' || !c.pushed_at) return '';
+    const d = Math.floor((Date.now() - new Date(c.pushed_at.replace(' ', 'T'))) / 86400000) + 1;
+    return d <= 7 ? `<span class="chip">🎓 día ${d} de 7</span>` : '';
+  };
+  el.innerHTML = `<section class="card span-12" style="margin-bottom:18px">
+    <div class="card-head"><h2>En marcha (${cs.length})</h2>
+      <a class="row-view" href="#campaigns" style="text-decoration:none">Gestionar en Campañas ›</a></div>
+    ${cs.map(c => {
+      const ex = (c.match_role || '').toUpperCase().startsWith('EXACT');
+      const tag = c.type === 'SHOPPING'
+        ? '<span class="mtag mtag-SHOP">🛒 SHOPPING</span>'
+        : `<span class="mtag ${ex ? 'mtag-EXACT' : 'mtag-PHRASE'}">${ex ? 'EXACT' : 'PHRASE'}</span>`;
+      return `<div class="d-list-row" style="cursor:default">
+        <span>${tag}<b style="margin-left:7px">${esc(c.name)}</b></span>
+        <span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span style="color:var(--muted)">$${c.daily_budget_usd}/día · ${(c.ad_groups || []).length} grupos</span>
+          ${learn(c)}
+          <span class="st-chip ${c.status === 'LIVE' ? 'st-LIVE' : 'st-DRAFT'}">${c.status === 'LIVE' ? '⚡ Activa en Google Ads' : 'En el gestor'}</span>
+        </span></div>`;
+    }).join('')}
+  </section>`;
+}
+
+/* ---------- Shopping: primera campaña de Merchant ---------- */
+let shopTimer = null;
+async function loadShoppingPlan() {
+  const out = $('#shop-out');
+  if (!out) return;
+  if (!IS_LOCAL) { out.innerHTML = ''; return; }
+  try {
+    try {
+      const s = await (await fetch('/api/campaigns')).json();
+      window._accepted = new Map((s.campaigns || []).map(c => [c.name, c.status]));
+      window._storeCamps = s.campaigns || [];
+      renderEnMarcha();
+    } catch (e) {}
+    const j = await (await fetch('/api/shopping/plan')).json();
+    if (j.running) {
+      // progreso desde la hora real del servidor: sobrevive refresh del navegador
+      const mins = j.started_at ? Math.max(0, Date.now() / 1000 - j.started_at) / 60
+                                : ((window._shopThink ||= Date.now()), (Date.now() - window._shopThink) / 60000);
+      const STAGES = [
+        'Leyendo el feed de Merchant y el histórico por producto',
+        'Cruzando ROAS real con stock por variante',
+        'Decidiendo la estructura de grupos — empezar simple, escalar con señal',
+        'Calculando pujas y presupuesto',
+        'Escribiendo su hoja de escalado por fases',
+        'Auditándose a sí mismo y corrigiendo lo que encuentre',
+      ];
+      const idx = Math.min(STAGES.length - 1, Math.floor(mins / 1.4));
+      out.innerHTML = `<div class="think-panel">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="fable-badge">⚡ Fable 5</span><b style="font-size:15px">Fable está diseñando tu primera campaña de Shopping…</b></div>
+        <div class="tsteps">${STAGES.map((s, i) => `<div class="tstep ${i < idx ? 'done' : i === idx ? 'on' : ''}"><span class="tdot"></span>${i < idx ? '✓ ' : ''}${s}</div>`).join('')}</div>
+        <p class="plan-meta" style="margin-top:14px">Suele tardar 3–6 minutos. Esta vista se actualiza sola.</p></div>`;
+      $('#btn-generate-shop').disabled = true;
+      if (!shopTimer) shopTimer = setInterval(loadShoppingPlan, 8000);
+      return;
+    }
+    window._shopThink = null;
+    $('#btn-generate-shop').disabled = false;
+    if (shopTimer) { clearInterval(shopTimer); shopTimer = null; }
+    if (j.error) { out.innerHTML = `<div class="plan-empty">✕ Error al generar: ${esc(j.error)}</div>`; return; }
+    if (!j.plan) {
+      out.innerHTML = '<div class="plan-empty">Aún no hay plan de Shopping. Pulsa <b>“Generar plan Shopping”</b> — Fable estudiará el catálogo real y decidirá la estructura desde cero.</div>';
+      return;
+    }
+    renderShoppingPlan(j.plan);
+  } catch (e) { out.innerHTML = '<div class="plan-empty">No se pudo conectar con el servidor local.</div>'; }
+}
+
+function renderShoppingPlan(p) {
+  const c = p.campaign || {};
+  const acc = window._accepted || new Map();
+  const st = acc.get(c.name);   // undefined | DRAFT | LIVE
+  const groups = c.product_groups || [], negs = p.negatives || [], scale = p.scaling_plan || [];
+  // exclusiones agrupadas por producto (las variantes no aportan como filas sueltas)
+  const excD = {};
+  (c.excluded_products || []).forEach(e => {
+    const k = e.title || e.item_id;
+    (excD[k] = excD[k] || { title: k, reason: e.reason || '', n: 0 }).n++;
+  });
+  const excs = Object.values(excD);
+  const sc = (window._storeCamps || []).find(x => x.name === c.name);
+  const day = sc && sc.pushed_at ? Math.floor((Date.now() - new Date(sc.pushed_at.replace(' ', 'T'))) / 86400000) + 1 : null;
+  const dtl = (t, chip, body, open) => `<details class="plan-dtl"${open ? ' open' : ''}>
+    <summary><span class="chev">▶</span>${t}<span class="chip">${chip}</span></summary>
+    <div class="dtl-body">${body}</div></details>`;
+
+  const chips = `<div class="live-row" style="margin:2px 0 10px;font-size:12.5px">
+      <span>💰 <b>$${c.daily_budget_usd}/día</b></span><span>${groups.length} grupos</span>
+      <span>${excs.length} productos excluidos</span><span>${negs.length} negativas</span>
+      ${p._meta ? `<span style="color:var(--muted)">plan ${esc((p._meta.generated_at || '').slice(0, 10))}${p._meta.self_review_result === 'ok' ? ' · auditoría limpia' : ''}</span>` : ''}
+    </div>`;
+  const secciones = `
+    ${dtl('📈 Hoja de escalado de Fable', scale.length + ' fases',
+      scale.map((f, i) => `<div class="d-list-row" style="cursor:default;gap:12px;align-items:flex-start">
+        <span style="flex:none;width:24px;height:24px;border-radius:50%;background:color-mix(in srgb, var(--shop) 16%, transparent);color:var(--shop-ink);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px">${i + 1}</span>
+        <span style="flex:1;min-width:0"><b>${esc(f.fase || '')}</b><br><small style="color:var(--muted)">Cuándo: ${esc(f.cuando || '')}</small><br><small>${esc(f.accion || '')}</small></span></div>`).join(''), !st)}
+    ${dtl('Grupos de productos', groups.map(g => '$' + g.cpc_bid_usd).join(' · '),
+      groups.map(g => `<div class="d-list-row" style="cursor:default"><span style="min-width:0"><b>${esc(g.name)}</b><br>
+        <small style="color:var(--muted)">${g.all_products ? 'todo el catálogo restante' : (g.item_ids || []).length + ' ofertas'} — ${esc((g.rationale || '').slice(0, 130))}${(g.rationale || '').length > 130 ? '…' : ''}</small></span>
+        <span class="chip" style="flex:none">CPC $${g.cpc_bid_usd}</span></div>`).join(''))}
+    ${dtl('Productos excluidos', excs.length,
+      excs.map(e => `<div class="d-list-row" style="cursor:default"><span><b>${esc(e.title)}</b>${e.n > 1 ? ` <small style="color:var(--muted)">×${e.n} variantes</small>` : ''}</span>
+        <small style="color:var(--muted);max-width:55%">${esc(e.reason.slice(0, 100))}</small></div>`).join(''))}
+    ${dtl('Negativas', negs.length, `<div class="term-chips">${negs.map(n => `<span class="term-chip">${esc(n)}</span>`).join('')}</div>`)}`;
+
+  if (st) {
+    // ya en el gestor / activa: UNA fila plegada — la gestión vive en Campañas
+    $('#shop-out').innerHTML = `
+    <details class="plan-dtl" style="border:1px solid var(--hairline);border-left:4px solid var(--shop);border-radius:12px;background:var(--card);box-shadow:var(--shadow);padding:0 16px;margin-bottom:14px">
+      <summary><span class="chev">▶</span><span class="type-badge shop">🛒</span>
+        <span>Plan vigente — <b>${esc(c.name)}</b></span>
+        <span style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          ${day && day <= 7 ? `<span class="chip">🎓 día ${day} de 7</span>` : ''}
+          <span class="st-chip ${st === 'LIVE' ? 'st-LIVE' : 'st-DRAFT'}">${st === 'LIVE' ? '⚡ Activa' : 'En el gestor'}</span>
+        </span></summary>
+      <div class="dtl-body">
+        <p class="plan-meta" style="margin:2px 0 8px">${esc(p.strategy_summary || '')}</p>
+        ${chips}${secciones}
+      </div>
+    </details>`;
+    return;
+  }
+  // pendiente de aceptar: card completa con la estrategia a la vista
+  $('#shop-out').innerHTML = `
+  <section class="card span-12" style="border-left:4px solid var(--shop);margin-bottom:14px">
+    <div class="card-head"><h2><span class="type-badge shop">🛒</span> ${esc(c.name || 'Campaña Shopping')}</h2>
+      <button class="accept-btn" data-accept-shop="1">✓ Aceptar y pasar a Campañas</button></div>
+    <p class="note" style="max-width:none">${esc(p.strategy_summary || '')}</p>
+    ${chips}${secciones}
+  </section>`;
+}
+
+$('#shop-out').addEventListener('click', async e => {
+  const b = e.target.closest('[data-accept-shop]');
+  if (!b || b.classList.contains('done')) return;
+  b.disabled = true; b.textContent = 'Aceptando…';
+  try {
+    const r = await (await fetch('/api/shopping/accept', { method: 'POST' })).json();
+    if (!r.ok) { b.disabled = false; b.textContent = '✕ ' + (r.reason || 'error'); return; }
+  } catch (e2) { b.disabled = false; b.textContent = '✕ error de conexión'; return; }
+  await loadShoppingPlan();
+});
+
+if ($('#btn-generate-shop')) $('#btn-generate-shop').addEventListener('click', async () => {
+  $('#btn-generate-shop').disabled = true;
+  try { await fetch('/api/shopping/plan/generate', { method: 'POST' }); } catch (e) {}
+  loadShoppingPlan();
+});
+
+route();
+
+/* ---------- Listings v3 (override): ordenado por ciclo de vida ---------- */
+function renderPlan(p) {
+  const camps = p.campaigns || [];
+  const acc = window._accepted || new Map();
+  const isExact = c => (c.match_role || '').toUpperCase().startsWith('EXACT');
+  const pending = camps.filter(c => !acc.has(c.name));
+  const accepted = camps.filter(c => acc.has(c.name));
+  let html = '';
+
+  renderEnMarcha();
+
+  // --- SIN PENDIENTES: panel de crecimiento ---
+  if (!pending.length) {
+    html += `<section class="think-panel" style="margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span class="fable-badge">⚡ Fable 5</span>
+        <b style="font-size:15px">Todo lo propuesto está en marcha — fase de aprendizaje</b></div>
+      <p class="note" style="max-width:none;margin:10px 0 0">Fable está madurando con los datos de las campañas activas (lecturas cada 3 h, lecciones automáticas). Cuando el plan cumpla una semana en marcha, propondrá <b>crecimiento él solo</b>: nuevos temas del vigía, expansiones estacionales, campaña de marca… Y puedes adelantarlo cuando quieras con <b>“Generar plan con Fable”</b> — la propuesta será incremental, nunca repetida.</p>
+      ${p._meta ? `<p class="plan-meta" style="margin-top:12px">Plan vigente: ${esc(p._meta.generated_at)} · ${p._meta.self_review_rounds != null ? `auto-auditado${p._meta.self_review_rounds > 0 ? ` (${p._meta.self_review_rounds} correcciones)` : ''}` : ''}</p>` : ''}
+    </section>`;
+    $('#plan-out').innerHTML = html;
+    return;
+  }
+
+  // --- PROPUESTA PENDIENTE: diseño completo solo para lo nuevo ---
+  html += `<section class="card span-12" style="margin-bottom:18px">
+    <div class="card-head"><h2>Nueva propuesta de Fable</h2>
+      <span style="display:flex;gap:10px;align-items:center"><span class="fable-badge">⚡ razonada con tus datos</span>
+      <button class="accept-btn" data-accept="*">✓ Aceptar todo</button></span></div>
+    <p class="note" style="max-width:none">${esc(p.strategy_summary)}</p>`;
+  const total = pending.reduce((a, c) => a + (c.daily_budget_usd || 0), 0);
+  if (total) {
+    html += `<div style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h4 style="margin:0;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">Inversión diaria propuesta</h4>
+        <b style="font-size:19px">$${total}/día</b></div>
+      <div class="budget-strip">${pending.map(c => `<div class="${isExact(c) ? 'seg-exact' : 'seg-phrase'}" style="width:${(c.daily_budget_usd / total * 100).toFixed(1)}%"></div>`).join('')}</div>
+      <div class="budget-legend">${pending.map(c => `<span><span class="dot" style="background:${isExact(c) ? 'var(--accent)' : 'var(--s1)'}"></span>${esc(c.name)} · $${c.daily_budget_usd}</span>`).join('')}</div></div>`;
+  }
+  html += `</section>`;
+
+  for (const c of pending) {
+    const ex = isExact(c);
+    html += `<section class="card camp-card" style="margin-bottom:18px">
+      <div class="camp-band${ex ? '' : ' phrase'}">
+        <div><div class="camp-role">${esc(c.match_role || '')}</div><h2>${esc(c.name)}</h2></div>
+        <div style="display:flex;align-items:center;gap:16px">
+          <button class="accept-btn" data-accept="${esc(c.name)}">✓ Aceptar listing</button>
+          <div class="camp-budget"><div class="num">$${c.daily_budget_usd}</div><small>por día</small></div>
+        </div>
+      </div>
+      <div class="camp-body">
+        <p class="note">${esc(c.objective)}</p>
+        ${c.budget_rationale ? `<div class="reason"><span class="zap">⚡</span><span><b>Fable calcula:</b> ${esc(c.budget_rationale)}</span></div>` : ''}
+        <div class="ag-grid">
+          ${(c.ad_groups || []).map(g => `<div class="adgroup">
+            <h3>${esc(g.name)}</h3>
+            <p class="note why">${esc(g.rationale)}</p>
+            <div class="kwchips">${(g.keywords || []).map(k => `<span class="kwchip"><b>${esc(k.text)}</b><span class="mtag mtag-${k.match}">${k.match}</span></span>`).join('')}</div>
+            ${adPreview(g)}
+            <div class="assets">
+              <h5>Titulares (${(g.headlines || []).length}) · máx. 30 car.</h5>
+              <div class="hl-list">${(g.headlines || []).map(h => metered(h, 30)).join('')}</div>
+              <h5>Descripciones (${(g.descriptions || []).length}) · máx. 90 car.</h5>
+              <div class="hl-list">${(g.descriptions || []).map(d => metered(d, 90)).join('')}</div>
+            </div>
+          </div>`).join('')}
+        </div>
+        ${c.cross_negatives && c.cross_negatives.length ? `<div class="adgroup" style="border-style:dashed;margin-top:14px">
+          <h3>Bloqueo de flujo — negativas de esta campaña</h3>
+          <div class="neg-chips">${c.cross_negatives.map(n => `<span class="neg">${esc(n)}</span>`).join('')}</div></div>` : ''}
+      </div>
+    </section>`;
+  }
+
+  html += `<section class="card span-12" style="margin-top:18px"><h2>Negativas de la propuesta</h2>
+    <div class="neg-chips">${(p.negatives || []).map(n => `<span class="neg">${esc(n)}</span>`).join('')}</div></section>`;
+  html += `<section class="card span-12" style="margin-top:18px"><h2>Plan de vuelo tras el lanzamiento</h2>
+    <ul class="steps-list">${(p.next_steps || []).map(s => `<li>${esc(s)}</li>`).join('')}</ul></section>`;
+  if (p._meta) {
+    const sr = p._meta.self_review_rounds;
+    html += `<p class="plan-meta">Generado por <b>${esc(p._meta.model)}</b> · ${esc(p._meta.generated_at)}${sr != null ? ` · <b style="color:var(--accent-ink)">se auto-auditó${sr > 0 ? ` y corrigió ${sr} ronda${sr > 1 ? 's' : ''}` : ': sin fallos'}</b>` : ''}</p>`;
+  }
+  $('#plan-out').innerHTML = html;
+}
+
+/* ---------- sincronización automática (solo localhost) ---------- */
+if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+  const pill = document.createElement('div');
+  pill.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:20;font-size:12px;' +
+    'padding:6px 13px;border-radius:999px;border:1px solid var(--hairline);' +
+    'background:var(--card);color:var(--ink-2);box-shadow:var(--shadow);';
+  pill.textContent = '● sync automático';
+  pill.style.setProperty('color', 'var(--good-text)');
+  document.body.appendChild(pill);
+
+  let stamp = null;
+  async function check() {
+    try {
+      const r = await fetch('/api/version');
+      const j = await r.json();
+      if (stamp === null) stamp = j.stamp;
+      else if (j.stamp !== stamp) location.reload();
+      const d = new Date(j.stamp * 1000);
+      pill.textContent = `● sync automático · datos de las ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    } catch (e) {
+      pill.textContent = '○ servidor desconectado';
+      pill.style.setProperty('color', 'var(--muted)');
+    }
+  }
+  check();
+  setInterval(check, 3 * 60 * 1000); // cada 3 minutos
+}
+</script>
