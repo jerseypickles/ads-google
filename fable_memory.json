@@ -2,18 +2,6 @@
  "lessons": [
   {
    "date": "2026-08-02",
-   "lesson": "El dashboard ahora tiene stock real por variante desde Shopify Admin API (.shopify_token). Productos sin stock no pueden anunciarse en Shopping — verificar stock antes de proponer campañas o keywords de un producto específico."
-  },
-  {
-   "date": "2026-08-02",
-   "lesson": "La concentración de valor en Pickled Vegetables — Discovery ya no es ruido de una venta: 2 de 2 conversiones y el 100% del valor de la cuenta ($64.36) salen del mismo grupo, y la keyword PHRASE 'pickled vegetables' pasó a ROAS 1.86 (>break-even) con $34.68 gastados. Es el único motor probado de la cuenta y el candidato natural a escalar cuando termine el learning."
-  },
-  {
-   "date": "2026-08-02",
-   "lesson": "La inversión de roles control/descubrimiento se profundiza: la EXACT 'Control' cerró la ventana con $62.25, CTR 3.2% y $0 de valor mientras la PHRASE convierte con CTR 5.2% — en esta cuenta la campaña de descubrimiento es la que rinde, y el reparto de presupuesto 54/46 a favor de la EXACT debe reevaluarse en el paquete del día 7 con los datos completos."
-  },
-  {
-   "date": "2026-08-02",
    "lesson": "Los términos transaccionales clican al 100% pagando el tope: 'where to get fermented pickles' hizo 2 clics en 2 impresiones a ~$1.97/clic — la intención 'where to get/buy/best' existe y paga premium; merece keywords y anuncios propios en la promoción del día 7, no solo captura pasiva vía PHRASE."
   },
   {
@@ -159,6 +147,18 @@
   {
    "date": "2026-08-02",
    "lesson": "El paso checkout→compra dejó de ser ~perfecto: 6 compras sobre 9 checkouts (67%) tras lecturas previas de 100% y 75% — con n=9 no es veredicto, pero la tesis de que la fuga del funnel está 'exclusivamente' en la entrada al checkout debe suavizarse: hay que vigilar también el abandono dentro del propio checkout."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "La duda del catálogo horseradish queda resuelta: existen Sweet Horseradish Pickle Chips y Sweet Horseradish Pickled Tomatoes (ambos con clics en Shopping) y la demanda de búsqueda persiste con CTR alto ('horseradish pickles' + 'horseradish bread and butter pickles', 3 clics/11 impr, $3.83) — el día 7 horseradish es candidato firme a keyword propia, no a negativa."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "La única conversión de Shopping tiene nombre: CHAMOY PICKLE CHIPS - QUART, producto viral/tendencia que el árbol de prioridades relegó al grupo escoba y convirtió con 1 clic a $0.24 ($48.95) — el día 7 merece subir de grupo y evaluar demanda de búsqueda propia ('chamoy pickle'), porque el mapa de 'estrellas' no contempló los productos de tendencia."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El keyword 'homemade pickles' bloquea la defensa anti-DIY: mientras esté activo no se puede negar 'homemade' (chocaría con keyword propia), y por esa puerta entra tráfico DIY como 'homemade bread and butter pickles' ($1.96); el propio keyword lleva $1.47 y 0 conv en 7 días — el día 7 hay que decidir si demuestra valor o se pausa para poder cerrar la puerta con la negativa."
   }
  ]
 }

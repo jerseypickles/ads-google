@@ -42,6 +42,41 @@ KEYWORDS_MAX_AGE = 3 * 24 * 3600    # 3 días
 CHECK_EVERY = 15 * 60               # comprobar cada 15 min
 
 app = Flask(__name__)
+
+# --- arranque en la nube (Render): materializar credenciales desde el entorno ---
+import base64
+import os as _os
+
+for _env, _fname in (("GOOGLE_ADS_YAML", "google-ads.yaml"),
+                     ("SHOPIFY_TOKEN", ".shopify_token"),
+                     ("MERCHANT_TOKEN_JSON", ".merchant_token.json")):
+    _v = _os.environ.get(_env)
+    if _v and not (BASE / _fname).exists():
+        (BASE / _fname).write_text(_v, encoding="utf-8")
+
+_DASH_PASSWORD = _os.environ.get("DASH_PASSWORD", "").strip()
+READ_ONLY = bool(_os.environ.get("READ_ONLY", "").strip())
+
+
+@app.before_request
+def _guard():
+    if _DASH_PASSWORD:
+        auth = request.headers.get("Authorization", "")
+        ok = False
+        if auth.startswith("Basic "):
+            try:
+                _, pwd = base64.b64decode(auth[6:]).decode().split(":", 1)
+                ok = pwd == _DASH_PASSWORD
+            except Exception:
+                pass
+        if not ok:
+            return app.response_class(
+                "Acceso restringido", 401,
+                {"WWW-Authenticate": 'Basic realm="Jersey Pickles Ads"'})
+    # espejo en la nube: se mira, no se toca — lo que muta se hace desde el Mac
+    if READ_ONLY and request.method == "POST":
+        return jsonify(ok=False, reason="modo espejo: esta acción se hace desde la app del Mac"), 403
+    return None
 _lock = threading.Lock()
 
 
@@ -175,6 +210,10 @@ def sync_if_stale() -> None:
             mirrored = mongo.mirror_csvs()
             if mirrored:
                 print(f"[mongo] espejo de datos: {mirrored}", flush=True)
+            try:  # foto del dashboard para el espejo en la nube
+                mongo.upsert("cache", {"_id": "dashboard_data"}, {"data": build_data()})
+            except Exception:
+                pass
             if live:
                 _kick_review()  # datos frescos → Fable relee el rendimiento
         if now - _newest_mtime("historical_metrics_*.csv") > KEYWORDS_MAX_AGE:
@@ -239,8 +278,14 @@ def auto_sync_loop() -> None:
 @app.route("/")
 def index():
     template = (BASE / "dashboard_template.html").read_text(encoding="utf-8")
+    try:
+        data = build_data()
+    except Exception:
+        # nube sin CSVs: usar la foto que el Mac espeja en Mongo
+        cached = mongo.get_doc("cache", {"_id": "dashboard_data"}) or {}
+        data = cached.get("data", {})
     resp = app.response_class(
-        template.replace("__DATA__", json.dumps(build_data(), ensure_ascii=False)),
+        template.replace("__DATA__", json.dumps(data, ensure_ascii=False)),
         mimetype="text/html")
     resp.headers["Cache-Control"] = "no-store"  # el diseño cambia seguido
     return resp
@@ -363,6 +408,9 @@ CAMPS_PATH = BASE / "campaigns_local.json"
 def _load_camps() -> dict:
     if CAMPS_PATH.exists():
         return json.loads(CAMPS_PATH.read_text(encoding="utf-8"))
+    doc = mongo.get_doc("manager", {"_id": "store"})  # espejo en la nube
+    if doc and doc.get("store"):
+        return doc["store"]
     return {"campaigns": [], "negatives": []}
 
 

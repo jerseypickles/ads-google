@@ -35,7 +35,7 @@ MEMORY_PATH = BASE / "fable_memory.json"
 def load_lessons() -> list[dict]:
     if MEMORY_PATH.exists():
         return json.loads(MEMORY_PATH.read_text(encoding="utf-8")).get("lessons", [])
-    return []
+    return mongo.all_docs("lessons", limit=40)  # espejo en la nube
 
 
 def learn(lesson: str) -> None:
@@ -398,7 +398,7 @@ def generate_plan() -> dict:
 def load_plan() -> dict | None:
     if PLAN_PATH.exists():
         return json.loads(PLAN_PATH.read_text(encoding="utf-8"))
-    return None
+    return mongo.latest("plans")  # espejo en la nube
 
 
 # ---------------------------------------------------------------------------
@@ -555,7 +555,7 @@ def generate_watch() -> dict:
 def load_watch() -> dict | None:
     if WATCH_PATH.exists():
         return json.loads(WATCH_PATH.read_text(encoding="utf-8"))
-    return None
+    return mongo.latest("watches")  # espejo en la nube
 
 
 # ---------------------------------------------------------------------------
@@ -908,7 +908,7 @@ def generate_campaign_review() -> dict:
 def load_campaign_review() -> dict | None:
     if CAMP_REVIEW_PATH.exists():
         return json.loads(CAMP_REVIEW_PATH.read_text(encoding="utf-8"))
-    return None
+    return mongo.latest("reviews")  # espejo en la nube
 
 
 # ---------------------------------------------------------------------------
@@ -1236,7 +1236,7 @@ def generate_shopping_plan() -> dict:
 def load_shopping_plan() -> dict | None:
     if SHOPPING_PLAN_PATH.exists():
         return json.loads(SHOPPING_PLAN_PATH.read_text(encoding="utf-8"))
-    return None
+    return mongo.latest("shopping_plans")  # espejo en la nube
 
 
 if __name__ == "__main__":

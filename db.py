@@ -15,6 +15,7 @@ Degradación elegante: si Atlas no responde, todo sigue funcionando con los
 archivos locales; se reintenta cada 5 minutos.
 """
 
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -37,7 +38,7 @@ def get_db():
     try:
         from pymongo import MongoClient
 
-        uri = URI_PATH.read_text(encoding="utf-8").strip()
+        uri = os.environ.get("MONGO_URI") or URI_PATH.read_text(encoding="utf-8").strip()
         client = MongoClient(uri, serverSelectionTimeoutMS=5000)
         client.admin.command("ping")
         _client = client
@@ -98,6 +99,38 @@ def upsert_many(collection: str, key_fields: list[str], docs: list[dict]) -> int
     except Exception as exc:
         print(f"[mongo] error bulk en {collection}: {exc}", flush=True)
         return 0
+
+
+def get_doc(collection: str, filt: dict) -> dict | None:
+    """Un documento (sin _id) o None."""
+    db = get_db()
+    if db is None:
+        return None
+    try:
+        return db[collection].find_one(filt, {"_id": 0})
+    except Exception:
+        return None
+
+
+def latest(collection: str, filt: dict | None = None) -> dict | None:
+    """El documento más reciente de la colección (sin _id) o None."""
+    db = get_db()
+    if db is None:
+        return None
+    try:
+        return db[collection].find_one(filt or {}, {"_id": 0}, sort=[("_id", -1)])
+    except Exception:
+        return None
+
+
+def all_docs(collection: str, limit: int = 100) -> list[dict]:
+    db = get_db()
+    if db is None:
+        return []
+    try:
+        return list(db[collection].find({}, {"_id": 0}).sort("_id", 1).limit(limit))
+    except Exception:
+        return []
 
 
 def mirror_csvs() -> dict:
