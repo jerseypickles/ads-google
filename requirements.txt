@@ -1,0 +1,7 @@
+google-ads==31.2.0
+google-auth
+google-auth-oauthlib
+requests
+flask
+pymongo
+pyyaml

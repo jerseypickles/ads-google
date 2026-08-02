@@ -33,7 +33,10 @@ BUILDER_LINKS = {
 
 
 def _session() -> AuthorizedSession:
-    t = json.load(open(BASE / ".merchant_token.json"))
+    # en Render las credenciales viven en variables de entorno, no en archivos
+    import os
+    raw = os.environ.get("MERCHANT_TOKEN_JSON")
+    t = json.loads(raw) if raw else json.load(open(BASE / ".merchant_token.json"))
     creds = Credentials(None, refresh_token=t["refresh_token"],
                         token_uri="https://oauth2.googleapis.com/token",
                         client_id=t["client_id"], client_secret=t["client_secret"],
@@ -43,7 +46,8 @@ def _session() -> AuthorizedSession:
 
 
 def _shopify_products() -> list:
-    token = (BASE / ".shopify_token").read_text().strip()
+    import os
+    token = os.environ.get("SHOPIFY_TOKEN") or (BASE / ".shopify_token").read_text().strip()
     out, url = [], (f"https://{SHOPIFY_DOMAIN}/admin/api/2025-07/products.json"
                     "?limit=250&status=active")
     while url:
@@ -56,6 +60,9 @@ def _shopify_products() -> list:
 
 
 def _ensure_datasource(s: AuthorizedSession) -> str:
+    import os
+    if os.environ.get("MERCHANT_DS"):
+        return os.environ["MERCHANT_DS"]
     if DS_NAME_FILE.exists():
         return DS_NAME_FILE.read_text().strip()
     r = s.get(f"{API}/datasources/v1/accounts/{ACCOUNT}/dataSources")

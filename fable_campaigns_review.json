@@ -1,54 +1,53 @@
 {
- "resumen": "La cuenta agregada queda en ROAS 1.05 ($243.81 de valor sobre $231.17 de gasto), apenas break-even: la PHRASE sostiene el resultado (4 de 6 conversiones, ROAS 1.60), la EXACT sigue en pérdida (ROAS 0.41, CPA $104.53) con la mitad de su gasto atrapado en Pickled Vegetables sin convertir, y Shopping convierte solo desde el grupo escoba. Las 3 campañas figuran en aprendizaje → regla cero: cero acciones propuestas; todo queda anotado para el paquete del día 7, previa verificación en Google Ads de la fecha real de inicio (el gestor marca día 0-1 pese a acumular ~7 días de métricas).",
+ "resumen": "La cuenta agregada roza el break-even: $243.81 de valor sobre $232.67 de gasto (ROAS 1.05) con 6 conversiones y CPA $38.78 (vs histórico $2.77). PHRASE (ROAS 1.59) y Shopping (1.54) sostienen la cuenta; la EXACT sigue siendo el lastre (0.41) aunque logró su primera conversión vía fermented. Las 3 campañas están en aprendizaje según el gestor, así que aplica la regla cero: sin acciones — todo lo observado queda anotado para el paquete del día 7, previa verificación de la fecha real de inicio en Google Ads.",
  "por_campana": [
   {
    "name": "JP | Search | EXACT | Control — US",
    "salud": "critico",
    "notas": [
-    "En aprendizaje según el gestor (día 1), pero acumula ventana de ~7 días de métricas — verificar fecha real en Google Ads antes del paquete del día 7; regla cero bloquea toda acción mientras tanto.",
-    "ROAS 0.41 ($43.15/$104.53) y CPA $104.53 vs referencia ~$10: pérdida directa; es la campaña con más gasto de la cuenta.",
-    "Pickled Vegetables EXACT quema $52.99 (51% del gasto) con 36 clics y 0 conversiones; las variantes específicas (red onions $14.29, jalapenos $13.30, watermelon rind $9.63, garlic $6.10, okra $2.11) suman ~$45 sin una sola venta en ningún match type.",
-    "Primera conversión de la campaña vía Fermented ($43.15, grupo ROAS 2.52; keyword 'fermented pickles' ROAS 3.28) — el rescate del día 7 debe construirse sobre long-tails transaccionales tipo 'where to get fermented pickles' (2 clics en 3 impr, $3.94), no sobre revivir Pickled Vegetables."
+    "En aprendizaje (día 1 según gestor, pero acumula ~7 días de métricas: verificar fecha real en Google Ads antes del paquete del día 7). Regla cero: sin acciones.",
+    "ROAS 0.41 ($43.15/$105.51) y CPA $105.51: la única conversión llegó por Fermented, Refrigerated & Deli ($43.15, ROAS grupo 2.52; la keyword 'fermented pickles' EXACT hace 3.28) — confirma que el rescate de la EXACT pasa por el clúster fermented.",
+    "Pickled Vegetables EXACT sigue quemando: $52.99 y 36 clics con 0 conversiones (50% del gasto de la campaña); Bread & Butter suma $17.68 con 0 conv — ambos candidatos a recorte el día 7.",
+    "Fugas por negativas desincronizadas: 'canned dill pickles' ($1.89), 'refrigerator pickles' ($3.99) y 'morgan's certified…' ($1.77) entran por Search porque 'canned', 'refrigerator' y 'morgan's' solo existen como negativas en Shopping."
    ]
   },
   {
    "name": "JP | Search | PHRASE | Discovery — US",
    "salud": "atencion",
    "notas": [
-    "En aprendizaje según el gestor (día 1) — misma discrepancia de fechas; regla cero aplica. Flujo de cross-negativas correcto: 34 EXACT bloqueadas como negativas.",
-    "La mejor campaña: ROAS 1.60 ($151.71/$94.91), 4 de 6 conversiones de la cuenta, CPA $23.73 — por encima de break-even pero lejos del objetivo ≥3.",
-    "El motor 'pickled vegetables' sigue decayendo: grupo en ROAS 1.58 (serie 2.73 → 2.04 → 1.89 → 1.58) y todo el valor sale del keyword genérico ($99.54/$58.76); es motor marginal, no estrella a escalar.",
-    "Core Discovery es el segundo motor con ROAS 5.65 ($52.17/$9.23), pero sigue pendiente auditar la atribución término→keyword: los términos de marca 'jersey pickles…' suman ~20 clics solo ayer/hoy y podrían estar inflando ese ROAS disfrazados de genérico."
+    "En aprendizaje (día 1 según gestor; misma duda sobre la fecha real). Regla cero: sin acciones.",
+    "Mejor campaña: ROAS 1.59 ($151.71/$95.43), CPA $23.86. Motores: 'pickles' en Core Discovery (ROAS 5.35, $52.17 con $9.75) y 'pickled vegetables' (ROAS keyword 1.69, $99.54/$58.76) — este último sigue su decaimiento monótono (2.04 → 1.89 → 1.69), tratarlo como marginal, no como estrella.",
+    "'quick pickled red onions' volvió a gastar $1.98 pese a que 'quick pickled' [BROAD] figura activo: reconfirma que hay negativas del gestor no aplicadas realmente en plataforma — auditar antes del día 7.",
+    "Demanda sin keyword propia que se captura de rebote: tomatoes genérico ($17.55 ayer/hoy entre 'pickled tomatoes' y 'pickled green tomatoes'), marca pura 'jersey pickles' (15 clics a CPC ~$0.23) y horseradish (3 clics en 10 impr) — material del paquete del día 7."
    ]
   },
   {
    "name": "JP · Shopping · Manual CPC · Core — US",
    "salud": "atencion",
    "notas": [
-    "En aprendizaje (gestor marca día 0 pese a tener métricas de 7 días) — regla cero: sin acciones.",
-    "El árbol de prioridades sigue invertido: Estrellas gastó $24.59 con 76 clics (77% del presupuesto) y 0 conversiones, mientras la única venta salió del grupo escoba Resto a $0.38 (ROAS 128.8).",
-    "ROAS de campaña 1.54 ($48.95/$31.73) — por encima de break-even, pero sostenido por una conversión casual, no por la estructura diseñada.",
-    "La demanda de tomatoes de marca ('jersey pickles hot tomatoes': 19 clics, $16.54, CTR 34.5%) entra probablemente por aquí sin grupo dedicado — reservar para el día 7 los dos grupos separados (marca vs genérico, con 'pickled (green) tomatoes' sumando otros $12.41 y 19 clics)."
+    "En aprendizaje (día 0 según gestor pese a 5.536 impresiones acumuladas: otra evidencia de que dias_activa no es fiable). Regla cero: sin acciones.",
+    "ROAS 1.54 ($48.95/$31.73) con CPA $31.73, pero la conversión salió del grupo escoba Resto — Descubrimiento ($0.38 de coste, ROAS 128.8), no de los grupos priorizados.",
+    "Estrellas — Tomates & Packs concentró el 77% del gasto ($24.59, 76 clics, CTR 2.5%) con 0 conversiones: el árbol de prioridades sigue sin validarse con datos y debe revisarse el día 7.",
+    "Núcleo (CTR 1.0%, $6.76, 0 conv) y Resto (CTR 0.3%) reciben impresiones amplias con poco clic: revisar el día 7 si el reparto de pujas del árbol corresponde a las conversiones reales."
    ]
   }
  ],
  "recomendaciones": [
-  "Verificar en Google Ads la fecha real de inicio de las 3 campañas: si ya cumplen 7 días, desbloquear el paquete del día 7 (redistribución EXACT→PHRASE, grupos de tomatoes marca/genérico, keywords 'where to buy fermented pickles', negativas 'old fashioned'/'grandma's').",
-  "Auditar en la plataforma que las negativas del gestor están realmente aplicadas: 'quick pickled red onions' volvió a gastar $1.98 y 'morgan's certified yes ma am mix' gastó $1.77 pese a figurar 'quick pickled' y 'morgan's' como negativas activas.",
-  "Sincronizar las listas de negativas entre campañas en el paquete del día 7: 'canned', 'refrigerator' y 'morgan's' solo existen en Shopping, y por esa asimetría 'canned dill pickles' ($1.89) y 'refrigerator pickles' ($3.99) entraron por Search.",
-  "Priorizar el arreglo web sobre cualquier escalado: el cuello carrito→checkout sigue clavado en ~10% (89 carritos → 9 checkouts esta ventana); con esa fuga, más tráfico solo multiplica la pérdida.",
-  "Preparar decisión sobre horseradish para el día 7 (3 clics en 10 impr, $3.83, sin keyword): keyword propia si existe producto en catálogo, negativa en las 3 campañas si no."
+  "Verificar en Google Ads la fecha real de inicio de las 3 campañas: el gestor reporta dias_activa 0-1 con ~7 días de métricas acumuladas, y de esa fecha depende cuándo se desbloquea el paquete de acciones del día 7.",
+  "Auditar en la plataforma que las negativas del gestor existen de verdad: 'quick pickled red onions' gastó $1.98 con 'quick pickled' supuestamente activo en las 3 campañas.",
+  "Preparar el paquete del día 7: sincronizar negativas entre campañas (añadir 'canned', 'refrigerator' y 'morgan's' a las dos de Search), evaluar 'old fashioned' y 'grandma's' como negativas del clúster Bread & Butter ($25.01 en 7 días, 0 conv), y crear grupos de tomatoes separados (marca vs genérico) más grupo de marca 'jersey pickles'.",
+  "Priorizar el arreglo web del paso carrito→checkout antes de escalar gasto: 556.5 page views → 95 carritos (17.1%, sano) → 9 checkouts (9.5%, el cuello estructural) → 6 compras.",
+  "Verificar si existe producto horseradish en el catálogo (3 clics en 10 impresiones ayer/hoy): si existe, keyword el día 7; si no, negativa en las 3 campañas. Y preparar los long-tails transaccionales 'where to buy/get fermented pickles' como EXACT propias ($3.94 con CTR 67%)."
  ],
  "acciones_propuestas": [],
  "lecciones_nuevas": [
-  "Las listas de negativas no están sincronizadas entre campañas: 'canned', 'refrigerator' y 'morgan's' existen solo en Shopping, y por esa asimetría términos DIY/irrelevantes ('canned dill pickles' $1.89, 'refrigerator pickles' $3.99) se fugan por Search — al sincronizar, la negativa 'refrigerator' no choca con la keyword activa 'refrigerated pickles' porque las negativas no expanden variantes cercanas.",
-  "La marca pura 'jersey pickles' genera demanda propia barata (215 impr, 15 clics, $3.44, CPC ~$0.23 solo ayer/hoy) que hoy se captura de rebote por matcheos accidentales — merece campaña o grupo de marca dedicado para proteger ese tráfico, leer su ROAS limpio y dejar de contaminar la atribución de los grupos genéricos."
+  "El paso checkout→compra dejó de ser ~perfecto: 6 compras sobre 9 checkouts (67%) tras lecturas previas de 100% y 75% — con n=9 no es veredicto, pero la tesis de que la fuga del funnel está 'exclusivamente' en la entrada al checkout debe suavizarse: hay que vigilar también el abandono dentro del propio checkout."
  ],
  "acciones_retenidas_learning": 0,
  "learning_until": "2026-08-09",
  "_meta": {
   "model": "claude-fable-5",
   "engine": "claude-code-cli",
-  "generated_at": "2026-08-02T18:53:45"
+  "generated_at": "2026-08-02T19:08:51"
  }
 }

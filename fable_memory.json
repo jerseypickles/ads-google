@@ -2,10 +2,6 @@
  "lessons": [
   {
    "date": "2026-08-02",
-   "lesson": "El cuello de botella carrito→checkout se confirma y empeora con más muestra: 21 add-to-cart → 2 begin checkout (~9.5%) esta semana vs ~12% en la medición anterior — ya no es ruido de día 1 sino un problema estructural de la web que pone techo a cualquier escalado de presupuesto."
-  },
-  {
-   "date": "2026-08-02",
    "lesson": "El dashboard ahora tiene stock real por variante desde Shopify Admin API (.shopify_token). Productos sin stock no pueden anunciarse en Shopping — verificar stock antes de proponer campañas o keywords de un producto específico."
   },
   {
@@ -159,6 +155,10 @@
   {
    "date": "2026-08-02",
    "lesson": "La marca pura 'jersey pickles' genera demanda propia barata (215 impr, 15 clics, $3.44, CPC ~$0.23 solo ayer/hoy) que hoy se captura de rebote por matcheos accidentales — merece campaña o grupo de marca dedicado para proteger ese tráfico, leer su ROAS limpio y dejar de contaminar la atribución de los grupos genéricos."
+  },
+  {
+   "date": "2026-08-02",
+   "lesson": "El paso checkout→compra dejó de ser ~perfecto: 6 compras sobre 9 checkouts (67%) tras lecturas previas de 100% y 75% — con n=9 no es veredicto, pero la tesis de que la fuga del funnel está 'exclusivamente' en la entrada al checkout debe suavizarse: hay que vigilar también el abandono dentro del propio checkout."
   }
  ]
 }
