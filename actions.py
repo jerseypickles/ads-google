@@ -116,6 +116,28 @@ def _nueva_unidad(client, ad_group_rn: str, root_rn: str, item_id: str,
     return op
 
 
+def keyword_7d_stats(campana: str, text: str):
+    """(coste, conversiones) de una keyword en los últimos 7 días, o None."""
+    try:
+        client = _client()
+        ga = client.get_service("GoogleAdsService")
+        camp = _campaign_by_name(ga, campana)
+        if camp is None:
+            return None
+        safe = text.replace("'", "\\'")
+        q = f"""SELECT metrics.cost_micros, metrics.conversions FROM keyword_view
+                WHERE campaign.id = {camp.id} AND segments.date DURING LAST_7_DAYS
+                  AND ad_group_criterion.keyword.text = '{safe}'"""
+        cost = conv = 0.0
+        for b in ga.search_stream(customer_id=CUSTOMER_ID, query=q):
+            for r in b.results:
+                cost += r.metrics.cost_micros / 1e6
+                conv += r.metrics.conversions
+        return cost, conv
+    except Exception:
+        return None
+
+
 def apply_action(a: dict) -> dict:
     tipo = a.get("tipo")
     campana = a.get("campana", "")

@@ -881,7 +881,11 @@ def enforce_learning_gate(review: dict) -> dict:
     if not learning:
         return review
     acts = review.get("acciones_propuestas") or []
-    kept = [a for a in acts if a.get("campana") not in learning]
+    # higiene de stock ≠ optimización: la exclusión de producto pasa la compuerta
+    # incluso en aprendizaje (el piloto la ejecuta solo si verifica el agotado)
+    kept = [a for a in acts
+            if a.get("campana") not in learning
+            or a.get("tipo") == "excluir_producto_shopping"]
     retained = len(acts) - len(kept)
     review["acciones_propuestas"] = kept
     review["acciones_retenidas_learning"] = retained

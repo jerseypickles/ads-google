@@ -534,7 +534,8 @@ def _run_review() -> None:
     try:
         review = fable.generate_campaign_review()
         _review_state["error"] = None
-        _maybe_expand(review)
+        _autopilot(review)      # Nivel 2: lo seguro se ejecuta solo (verificado)
+        _maybe_expand(review)   # y el crecimiento lo decide su análisis, no fechas
     except Exception as exc:
         _review_state["error"] = str(exc)
         print(f"[auditor] error: {exc}", flush=True)
@@ -660,21 +661,63 @@ def actions_log():
 @app.route("/api/actions/apply", methods=["POST"])
 def actions_apply():
     a = (request.get_json(silent=True) or {}).get("action") or {}
+    return jsonify(**_apply_and_log(a))
+
+
+def _apply_and_log(a: dict, auto: bool = False) -> dict:
     key = _action_key(a)
     log = _load_actions_log()
     if any(e["key"] == key and e.get("ok") for e in log) \
             or mongo.get_doc("actions", {"key": key, "ok": True}):
-        return jsonify(ok=True, msg="ya estaba aplicada", key=key)
+        return dict(ok=True, msg="ya estaba aplicada", key=key)
     result = fable_actions.apply_action(a)
-    entry = dict(key=key, action=a, ok=result["ok"], msg=result["msg"],
-                 ts=time.strftime("%Y-%m-%d %H:%M"))
+    msg = ("🤖 auto · " if auto else "") + result["msg"]
+    entry = dict(key=key, action=a, ok=result["ok"], msg=msg,
+                 ts=time.strftime("%Y-%m-%d %H:%M"), auto=auto)
     log.append(entry)
     ACTIONS_LOG.write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
     mongo.save("actions", entry)
     if result["ok"]:
-        fable.learn(f"Acción aplicada ({a.get('tipo')}): {result['msg']}. Razón: {a.get('razon', '')[:150]}")
+        modo = "auto-aplicada por el piloto Nivel 2" if auto else "aplicada"
+        fable.learn(f"Acción {modo} ({a.get('tipo')}): {result['msg']}. Razón: {a.get('razon', '')[:150]}")
         _pulse_cache.update(at=0)  # refrescar pulso tras el cambio
-    return jsonify(**result, key=key)
+    return dict(ok=result["ok"], msg=msg, key=key)
+
+
+# --- piloto automático Nivel 2: lo seguro se ejecuta solo, verificado por código ---
+AUTO_TYPES = {"añadir_negativa", "excluir_producto_shopping", "pausar_keyword"}
+
+
+def _auto_safe(a: dict) -> bool:
+    """El código verifica la evidencia — jamás se auto-aplica por confianza en el modelo."""
+    tipo = a.get("tipo")
+    if tipo == "añadir_negativa":
+        return True  # el ejecutor ya bloquea colisiones con keywords activas
+    if tipo == "excluir_producto_shopping":
+        try:  # higiene: SOLO si la variante está realmente agotada en Shopify
+            from store_catalog import shopify_catalog
+            vid = int((a.get("objetivo") or "").split("_")[3])
+            v = shopify_catalog()["by_variant"].get(vid)
+            return bool(v and v.get("qty") is not None and v["qty"] <= 0)
+        except Exception:
+            return False
+    if tipo == "pausar_keyword":
+        stats = fable_actions.keyword_7d_stats(a.get("campana", ""), a.get("objetivo", ""))
+        if not stats:
+            return False
+        cost, conv = stats
+        return cost >= 25 and conv == 0  # sangría verificada con números reales
+    return False
+
+
+def _autopilot(review: dict) -> None:
+    for a in (review or {}).get("acciones_propuestas") or []:
+        if a.get("tipo") not in AUTO_TYPES:
+            continue
+        if not _auto_safe(a):
+            continue
+        r = _apply_and_log(a, auto=True)
+        print(f"[piloto] {a.get('tipo')} → {r['msg']}", flush=True)
 
 
 # ---------------------------------------------------------------------------
