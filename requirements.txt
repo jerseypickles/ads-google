@@ -6,3 +6,4 @@ flask
 pymongo
 pyyaml
 gunicorn
+anthropic

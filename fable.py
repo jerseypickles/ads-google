@@ -35,7 +35,8 @@ MEMORY_PATH = BASE / "fable_memory.json"
 def load_lessons() -> list[dict]:
     if MEMORY_PATH.exists():
         return json.loads(MEMORY_PATH.read_text(encoding="utf-8")).get("lessons", [])
-    return mongo.all_docs("lessons", limit=40)  # espejo en la nube
+    docs = mongo.all_docs("lessons", limit=10000)  # espejo en la nube
+    return docs[-40:]
 
 
 def learn(lesson: str) -> None:
@@ -64,10 +65,7 @@ def _lessons_block() -> str:
 
 
 def _manager_state() -> str:
-    camps_path = BASE / "campaigns_local.json"
-    if not camps_path.exists():
-        return ""
-    store = json.loads(camps_path.read_text(encoding="utf-8"))
+    store = _load_store()
     lines = [
         f"- {c['name']} [{'EN GOOGLE ADS' if c.get('status') == 'LIVE' else 'borrador'}] ${c.get('daily_budget_usd')}/día"
         for c in store.get("campaigns", [])
@@ -222,24 +220,23 @@ def _have_sdk_credentials() -> bool:
     return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
 
 
-def _generate_via_sdk(prompt: str) -> dict:
+def _sdk_text(prompt: str, max_tokens: int = 32000) -> str:
+    """Llamada por API (streaming para prompts/salidas largas), con reintento simple."""
     from anthropic import Anthropic
 
     client = Anthropic()
-    with client.beta.messages.stream(
-        model=MODEL,
-        max_tokens=32000,
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-        output_config={"format": {"type": "json_schema", "schema": PLAN_SCHEMA}},
+    with client.messages.stream(
+        model=MODEL, max_tokens=max_tokens,
         messages=[{"role": "user", "content": prompt}],
     ) as stream:
         response = stream.get_final_message()
-
     if response.stop_reason == "refusal":
-        raise RuntimeError("Fable rechazó la petición (refusal) y el fallback también.")
-    text = next(b.text for b in response.content if b.type == "text")
-    return json.loads(text)
+        raise RuntimeError("Fable rechazó la petición.")
+    return next(b.text for b in response.content if b.type == "text")
+
+
+def _generate_via_sdk(prompt: str) -> dict:
+    return _extract_json(_sdk_text(prompt))
 
 
 def _extract_json(raw: str) -> dict:
@@ -282,19 +279,14 @@ def _generate_via_cli(prompt: str) -> dict:
 def _call_json(prompt: str, max_tokens: int = 32000) -> dict:
     """Llamada genérica a Fable que devuelve JSON parseado (SDK o CLI)."""
     if _have_sdk_credentials():
-        from anthropic import Anthropic
-
-        client = Anthropic()
-        with client.beta.messages.stream(
-            model=MODEL, max_tokens=max_tokens,
-            betas=["server-side-fallback-2026-07-01"], fallbacks="default",
-            messages=[{"role": "user", "content": prompt}],
-        ) as stream:
-            response = stream.get_final_message()
-        if response.stop_reason == "refusal":
-            raise RuntimeError("Fable rechazó la petición.")
-        raw = next(b.text for b in response.content if b.type == "text")
-        return _extract_json(raw)
+        last = None
+        for _ in range(2):  # JSON largo a veces malformado: reintentar 1 vez
+            try:
+                return _extract_json(_sdk_text(prompt, max_tokens))
+            except (json.JSONDecodeError, RuntimeError) as exc:
+                last = exc
+                print(f"[fable] JSON inválido vía SDK, reintento: {exc}", flush=True)
+        raise RuntimeError(f"Fable devolvió JSON inválido dos veces (SDK): {last}")
     return _generate_via_cli(prompt)
 
 
@@ -563,6 +555,14 @@ def load_watch() -> dict | None:
 # ---------------------------------------------------------------------------
 
 CAMPS_PATH = BASE / "campaigns_local.json"
+
+
+def _load_store() -> dict:
+    """Gestor de campañas: archivo local o espejo en Mongo (nube)."""
+    if CAMPS_PATH.exists():
+        return json.loads(CAMPS_PATH.read_text(encoding="utf-8"))
+    doc = mongo.get_doc("manager", {"_id": "store"})
+    return (doc or {}).get("store") or {"campaigns": [], "negatives": []}
 CAMP_REVIEW_PATH = BASE / "fable_campaigns_review.json"
 
 
@@ -582,7 +582,7 @@ def _live_deep_data() -> dict:
 
         from google.ads.googleads.client import GoogleAdsClient
 
-        store = json.loads(CAMPS_PATH.read_text(encoding="utf-8"))
+        store = _load_store()
         live_names = {c["name"] for c in store.get("campaigns", []) if c.get("status") == "LIVE"}
         if not live_names:
             return {}
@@ -713,9 +713,9 @@ def _live_deep_data() -> dict:
 
 
 def build_campaign_review_prompt() -> str:
-    if not CAMPS_PATH.exists():
+    store = _load_store()
+    if not store.get("campaigns"):
         raise RuntimeError("no hay campañas en el gestor")
-    store = json.loads(CAMPS_PATH.read_text(encoding="utf-8"))
     metrics = _campaign_metrics_by_name()
     deep = _live_deep_data()
 
@@ -836,7 +836,7 @@ def _learning_campaigns() -> dict:
     """Campañas en aprendizaje (<7 días desde su subida) → días que llevan."""
     out = {}
     try:
-        store = json.loads(CAMPS_PATH.read_text(encoding="utf-8"))
+        store = _load_store()
         for c in store.get("campaigns", []):
             if c.get("status") == "LIVE" and c.get("pushed_at"):
                 pushed = datetime.strptime(c["pushed_at"], "%Y-%m-%d %H:%M")
@@ -863,7 +863,7 @@ def enforce_learning_gate(review: dict) -> dict:
     review["acciones_propuestas"] = kept
     review["acciones_retenidas_learning"] = retained
     try:
-        store = json.loads(CAMPS_PATH.read_text(encoding="utf-8"))
+        store = _load_store()
         fin = max(
             datetime.strptime(c["pushed_at"], "%Y-%m-%d %H:%M") + timedelta(days=7)
             for c in store.get("campaigns", [])
@@ -1035,7 +1035,7 @@ def _merchant_intel() -> dict:
 
 
 def build_shopping_prompt(intel: dict) -> str:
-    store = json.loads(CAMPS_PATH.read_text(encoding="utf-8")) if CAMPS_PATH.exists() else {}
+    store = _load_store()
     negativas = store.get("negatives", [])
     return f"""Eres Fable, estratega senior de Google Ads de Jersey Pickles (jerseypickles.com, \
 EE.UU., pickles artesanales refrigerados con envío nacional). Vas a diseñar la PRIMERA campaña \

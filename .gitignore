@@ -27,3 +27,4 @@ merchant_images.json
 *.png
 report_keywords_*.csv
 sync.log
+.anthropic_key

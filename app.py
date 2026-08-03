@@ -256,12 +256,12 @@ def sync_if_stale() -> None:
                     feed_stamp.touch()
 
         # el auditor relee las campañas si el gestor cambió o la lectura está vieja
-        if CAMPS_PATH.exists():
+        if _load_camps().get("campaigns"):
             review_mtime = (
                 fable.CAMP_REVIEW_PATH.stat().st_mtime
                 if fable.CAMP_REVIEW_PATH.exists() else 0
             )
-            store_mtime = CAMPS_PATH.stat().st_mtime
+            store_mtime = CAMPS_PATH.stat().st_mtime if CAMPS_PATH.exists() else 0
             review_max = LIVE_REVIEW_AGE if live else CAMPAIGN_MAX_AGE
             if review_mtime < store_mtime or now - review_mtime > review_max:
                 _kick_review()
@@ -274,6 +274,12 @@ def auto_sync_loop() -> None:
         except Exception as exc:  # nunca tumbar el hilo de sync
             print(f"[sync] excepción: {exc}", flush=True)
         time.sleep(CHECK_EVERY)
+
+
+# en la nube (gunicorn no ejecuta __main__): RUN_SYNC=1 enciende el cerebro completo
+if _os.environ.get("RUN_SYNC"):
+    threading.Thread(target=auto_sync_loop, daemon=True).start()
+    print("[sync] hilo de sincronización activo (nube)", flush=True)
 
 
 @app.route("/")
