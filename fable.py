@@ -53,6 +53,13 @@ def learn(lesson: str) -> None:
     mongo.upsert("lessons", {"lesson": entry["lesson"]}, entry)
 
 
+def _account_today():
+    """'Hoy' en la zona de la cuenta (NY) — el servidor de la nube vive en UTC."""
+    from zoneinfo import ZoneInfo
+
+    return datetime.now(ZoneInfo("America/New_York")).date()
+
+
 def _lessons_block() -> str:
     lessons = load_lessons()
     if not lessons:
@@ -589,7 +596,7 @@ def _live_deep_data() -> dict:
         client = GoogleAdsClient.load_from_storage(str(BASE / "google-ads.yaml"))
         ga = client.get_service("GoogleAdsService")
         cid = "4888823590"
-        end = date.today()
+        end = _account_today()
         start = end - timedelta(days=7)
         rng = f"segments.date BETWEEN '{start.isoformat()}' AND '{end.isoformat()}'"
 
@@ -946,7 +953,7 @@ def _merchant_intel() -> dict:
     # rendimiento histórico por (producto, variante), dos ventanas
     perf: dict = {}
     for days, key in ((365, "365d"), (90, "90d")):
-        end = date.today()
+        end = _account_today()
         start = end - timedelta(days=days)
         q = f"""SELECT segments.product_item_id, metrics.clicks, metrics.cost_micros,
                 metrics.conversions, metrics.conversions_value

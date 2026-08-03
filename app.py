@@ -128,10 +128,18 @@ _live_cache: dict = {}  # range_key -> {"at": ts, "data": {...}}
 RANGES = {"today": 0, "yesterday": 1, "7d": 6, "14d": 13, "30d": 29}
 
 
-def _range_dates(range_key: str):
-    from datetime import date, timedelta
+def _account_today():
+    """'Hoy' en la zona de la cuenta de Google Ads (NY) — el servidor vive en UTC."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
 
-    today = date.today()
+    return datetime.now(ZoneInfo("America/New_York")).date()
+
+
+def _range_dates(range_key: str):
+    from datetime import timedelta
+
+    today = _account_today()
     if range_key == "yesterday":
         d = today - timedelta(days=1)
         return d, d
@@ -140,12 +148,10 @@ def _range_dates(range_key: str):
 
 
 def _fetch_live_metrics(range_key: str = "7d") -> dict:
-    from datetime import date
-
     now = time.time()
     ttl = 90 if range_key in ("today", "yesterday") else 300
     # la clave incluye la fecha: al empezar un día nuevo, "hoy"/"ayer" se reinician solos
-    cache_key = f"{range_key}:{date.today().isoformat()}"
+    cache_key = f"{range_key}:{_account_today().isoformat()}"
     cached = _live_cache.get(cache_key)
     if cached and now - cached["at"] < ttl:
         return cached["data"]
@@ -902,13 +908,13 @@ def products():
                        issues=cached.get("issues", []),
                        sin_stock=cached.get("sin_stock", []))
     try:
-        from datetime import date, timedelta
+        from datetime import timedelta
 
         from google.ads.googleads.client import GoogleAdsClient
 
         client = GoogleAdsClient.load_from_storage(str(BASE / "google-ads.yaml"))
         ga = client.get_service("GoogleAdsService")
-        end = date.today()
+        end = _account_today()
         start = end - timedelta(days=days_n)
         q = f"""SELECT segments.product_item_id, segments.product_title,
                 segments.product_merchant_id,
