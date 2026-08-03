@@ -2009,7 +2009,8 @@ function renderShoppingPlan(p) {
   $('#shop-out').innerHTML = `
   <section class="card span-12" style="border-left:4px solid var(--shop);margin-bottom:14px">
     <div class="card-head"><h2><span class="type-badge shop">🛒</span> ${esc(c.name || 'Campaña Shopping')}</h2>
-      <button class="accept-btn" data-accept-shop="1">✓ Aceptar y pasar a Campañas</button></div>
+      ${groups.length ? '<button class="accept-btn" data-accept-shop="1">✓ Aceptar y pasar a Campañas</button>'
+                      : '<span class="chip">Fable dice: aún no toca otra campaña — nada que aceptar</span>'}</div>
     <p class="note" style="max-width:none">${esc(p.strategy_summary || '')}</p>
     ${chips}${secciones}
   </section>`;

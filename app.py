@@ -232,17 +232,39 @@ def sync_if_stale() -> None:
         # crecimiento: si TODO lo propuesto ya está aceptado y el plan tiene edad,
         # Fable propone una expansión nueva él solo (con sus lecciones y el estado real)
         GROWTH_PLAN_AGE = 7 * 24 * 3600
+
+        def _plan_age(p) -> float:
+            """Edad del plan por su metadato (funciona en nube, sin archivos)."""
+            gen = ((p or {}).get("_meta") or {}).get("generated_at", "")
+            try:
+                return now - time.mktime(time.strptime(gen[:19], "%Y-%m-%dT%H:%M:%S"))
+            except Exception:
+                return 0.0
+
         try:
             plan = fable.load_plan()
-            if plan and CAMPS_PATH.exists() and not _plan_state["running"]:
-                store_names = {c["name"] for c in _load_camps()["campaigns"]}
+            camps = _load_camps().get("campaigns", [])
+            if plan and camps and not _plan_state["running"]:
+                store_names = {c["name"] for c in camps}
                 plan_names = {c["name"] for c in plan.get("campaigns", [])}
-                plan_age = now - fable.PLAN_PATH.stat().st_mtime
-                if plan_names and plan_names <= store_names and plan_age > GROWTH_PLAN_AGE:
-                    print("[crecimiento] plan agotado → Fable propone expansión", flush=True)
+                if plan_names and plan_names <= store_names and _plan_age(plan) > GROWTH_PLAN_AGE:
+                    print("[crecimiento] plan Search agotado → Fable propone expansión", flush=True)
                     _plan_state["running"] = True
                     _plan_state["error"] = None
                     threading.Thread(target=_run_plan_generation, daemon=True).start()
+
+            # crecimiento SHOPPING: con la campaña madura (≥14 días, ya con lectura
+            # ROAS según su propia hoja), Fable repiensa el catálogo: nuevos grupos,
+            # nueva campaña de ganadores, o nada si no hay caso — él decide
+            splan = fable.load_shopping_plan()
+            shop_live = [c for c in camps if c.get("type") == "SHOPPING" and c.get("status") == "LIVE"]
+            if splan and shop_live and not _shopping_state["running"] \
+                    and _plan_age(splan) > 14 * 24 * 3600:
+                print("[crecimiento] plan Shopping maduro → Fable repiensa el catálogo", flush=True)
+                _shopping_state["running"] = True
+                _shopping_state["error"] = None
+                _shopping_state["started_at"] = time.time()
+                threading.Thread(target=_run_shopping_generation, daemon=True).start()
         except Exception:
             pass
 

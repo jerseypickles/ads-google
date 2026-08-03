@@ -1037,11 +1037,29 @@ def _merchant_intel() -> dict:
 def build_shopping_prompt(intel: dict) -> str:
     store = _load_store()
     negativas = store.get("negatives", [])
+    shopping_vivas = [c for c in store.get("campaigns", [])
+                      if (c.get("type") or "").upper() == "SHOPPING"]
+    if shopping_vivas:
+        vivas = "; ".join(f"{c['name']} (${c.get('daily_budget_usd')}/día, {c.get('status')})"
+                          for c in shopping_vivas)
+        mision = f"""Ya tienes Shopping corriendo: {vivas}. Tu misión AHORA es la SIGUIENTE \
+JUGADA del catálogo con los datos reales acumulados — NO repetir la primera campaña:
+- La campaña existente se optimiza vía acciones en tus revisiones (pujas, mover/excluir \
+productos); NO la regeneres aquí.
+- Este plan debe ser una campaña NUEVA con nombre DISTINTO y un rol complementario claro. \
+Ejemplos del tipo de jugada: "Ganadores" solo con productos de ≥2 conversiones probadas a puja \
+agresiva (o tROAS si la campaña nueva tendrá señal suficiente); una estacional; o un \
+experimento PMax SOLO si la cuenta supera 30 conversiones/30d.
+- Sin solaparse: los productos que muevas a la campaña nueva deben quedar excluidos de la \
+vieja — decláralo en next_steps como acciones concretas (excluir_producto_shopping).
+- Si los datos aún NO justifican una segunda campaña, dilo con números en strategy_summary y \
+devuelve product_groups vacío — proponer por proponer quema presupuesto."""
+    else:
+        mision = """Vas a diseñar la PRIMERA campaña de Shopping (estándar, NO Performance Max) \
+de esta cuenta. Empiezas desde el principio: no hay historia de Shopping estándar — solo el \
+histórico de una PMax vieja (ya eliminada) que dejó datos por producto."""
     return f"""Eres Fable, estratega senior de Google Ads de Jersey Pickles (jerseypickles.com, \
-EE.UU., pickles artesanales refrigerados con envío nacional). Vas a diseñar la PRIMERA campaña \
-de Shopping (estándar, NO Performance Max) de esta cuenta. Empiezas desde el principio: no hay \
-historia de Shopping estándar — solo el histórico de una PMax vieja (ya eliminada) que dejó \
-datos por producto.
+EE.UU., pickles artesanales refrigerados con envío nacional). {mision}
 
 TU TRABAJO — construyes para escalar, no para lanzar por lanzar:
 1. ESTRUCTURA: decide TÚ cuántos grupos de productos crear y cómo dividirlos (¿todo el catálogo \
@@ -1097,8 +1115,8 @@ def _shopping_code_checks(plan: dict, valid_ids: set) -> list[str]:
     probs = []
     camp = plan.get("campaign") or {}
     groups = camp.get("product_groups") or []
-    if not groups:
-        probs.append("no hay product_groups")
+    # cero grupos es legítimo en regeneraciones ("aún no toca otra campaña");
+    # el validador de aceptación/subida sí exige grupos para ejecutar
     if sum(1 for g in groups if g.get("all_products")) > 1:
         probs.append("más de un grupo all_products=true")
     seen: dict = {}
