@@ -237,42 +237,9 @@ def sync_if_stale() -> None:
             _regen_watch()
         # crecimiento: si TODO lo propuesto ya está aceptado y el plan tiene edad,
         # Fable propone una expansión nueva él solo (con sus lecciones y el estado real)
-        GROWTH_PLAN_AGE = 7 * 24 * 3600
-
-        def _plan_age(p) -> float:
-            """Edad del plan por su metadato (funciona en nube, sin archivos)."""
-            gen = ((p or {}).get("_meta") or {}).get("generated_at", "")
-            try:
-                return now - time.mktime(time.strptime(gen[:19], "%Y-%m-%dT%H:%M:%S"))
-            except Exception:
-                return 0.0
-
-        try:
-            plan = fable.load_plan()
-            camps = _load_camps().get("campaigns", [])
-            if plan and camps and not _plan_state["running"]:
-                store_names = {c["name"] for c in camps}
-                plan_names = {c["name"] for c in plan.get("campaigns", [])}
-                if plan_names and plan_names <= store_names and _plan_age(plan) > GROWTH_PLAN_AGE:
-                    print("[crecimiento] plan Search agotado → Fable propone expansión", flush=True)
-                    _plan_state["running"] = True
-                    _plan_state["error"] = None
-                    threading.Thread(target=_run_plan_generation, daemon=True).start()
-
-            # crecimiento SHOPPING: con la campaña madura (≥14 días, ya con lectura
-            # ROAS según su propia hoja), Fable repiensa el catálogo: nuevos grupos,
-            # nueva campaña de ganadores, o nada si no hay caso — él decide
-            splan = fable.load_shopping_plan()
-            shop_live = [c for c in camps if c.get("type") == "SHOPPING" and c.get("status") == "LIVE"]
-            if splan and shop_live and not _shopping_state["running"] \
-                    and _plan_age(splan) > 14 * 24 * 3600:
-                print("[crecimiento] plan Shopping maduro → Fable repiensa el catálogo", flush=True)
-                _shopping_state["running"] = True
-                _shopping_state["error"] = None
-                _shopping_state["started_at"] = time.time()
-                threading.Thread(target=_run_shopping_generation, daemon=True).start()
-        except Exception:
-            pass
+        # CRECIMIENTO: sin gatillos por fecha. Fable evalúa el caso de expansión en
+        # CADA revisión (cada 3h) y _maybe_expand() dispara la generación cuando él
+        # declara conviene=true con confianza alta — inteligencia, no calendario.
 
         # feed propio de Merchant: stock y precios de Shopify cada 6 horas
         MERCHANT_FEED_AGE = 6 * 3600
@@ -519,10 +486,55 @@ def _save_camps(data: dict) -> None:
 _review_state = {"running": False, "error": None}
 
 
+def _recent_doc(collection: str, filt: dict, days: float) -> bool:
+    doc = mongo.latest(collection, filt)
+    if not doc or not doc.get("ts"):
+        return False
+    try:
+        then = time.mktime(time.strptime(str(doc["ts"])[:19], "%Y-%m-%dT%H:%M:%S"))
+        return (time.time() - then) < days * 86400
+    except Exception:
+        return False
+
+
+def _maybe_expand(review: dict) -> None:
+    """Fable declaró (o no) un caso de expansión en su revisión — el código solo
+    aplica salvaguardas: confianza alta, sin propuesta pendiente del mismo tipo,
+    respeto a rechazos recientes del dueño y cooldown anti-ráfaga."""
+    exp = (review or {}).get("expansion") or {}
+    try:
+        pendientes = {(c.get("type") or "SEARCH").upper()
+                      for c in _load_camps()["campaigns"] if c.get("status") == "PROPUESTA"}
+    except Exception:
+        pendientes = set()
+    rutas = (
+        ("search", "SEARCH", _plan_state, _run_plan_generation),
+        ("shopping", "SHOPPING", _shopping_state, _run_shopping_generation),
+    )
+    for key, tipo, state, runner in rutas:
+        e = exp.get(key) or {}
+        if not (e.get("conviene") and str(e.get("confianza", "")).lower() == "alta"):
+            continue
+        if tipo in pendientes or state["running"]:
+            continue
+        if _recent_doc("rejected_proposals", {"type": tipo}, 7):
+            print(f"[expansión] {tipo}: Fable ve caso pero el dueño rechazó hace <7d — se respeta", flush=True)
+            continue
+        if _recent_doc("expansion_triggers", {"type": tipo}, 3):
+            continue  # anti-ráfaga: máx. una propuesta nueva del tipo cada 3 días
+        print(f"[expansión] Fable declaró caso {tipo} (confianza alta): {e.get('razon', '')[:140]}", flush=True)
+        mongo.save("expansion_triggers", {"type": tipo, "razon": e.get("razon", "")})
+        state["running"] = True
+        state["error"] = None
+        state["started_at"] = time.time()
+        threading.Thread(target=runner, daemon=True).start()
+
+
 def _run_review() -> None:
     try:
-        fable.generate_campaign_review()
+        review = fable.generate_campaign_review()
         _review_state["error"] = None
+        _maybe_expand(review)
     except Exception as exc:
         _review_state["error"] = str(exc)
         print(f"[auditor] error: {exc}", flush=True)

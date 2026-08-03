@@ -789,8 +789,24 @@ Responde SOLO con JSON válido (sin markdown):
     "razon": "con los números que lo justifican", "urgencia": "alta|media|baja"}}],
   "lecciones_nuevas": ["APRENDIZAJE DURADERO que valga guardar en tu memoria permanente — patrones, \
 errores a no repetir, verdades del negocio descubiertas en los datos. NO coyunturas del día. \
-Máximo 3, y solo si de verdad aportan; si no hay nada nuevo que aprender, lista vacía."]
+Máximo 3, y solo si de verdad aportan; si no hay nada nuevo que aprender, lista vacía."],
+  "expansion": {{"search": {{"conviene": false, "razon": "con los números", "confianza": "alta|media|baja"}},
+               "shopping": {{"conviene": false, "razon": "con los números", "confianza": "alta|media|baja"}}}}
 }}
+
+EXPANSIÓN — ERES TÚ QUIEN DECIDE CUÁNDO CRECER (no hay calendario; esta evaluación corre en \
+cada revisión):
+- search: ¿hay demanda validada del vigía sin cubrir (volumen + momentum), clusters ganadores \
+en los términos reales que el plan actual no captura, o estacionalidad entrante que exige \
+campaña propia?
+- shopping: ¿hay productos con ≥2 conversiones probadas que merecen campaña propia con puja \
+mayor, presupuesto agotándose con demanda sobrante, o una parte del catálogo que la campaña \
+actual no explota?
+Reglas de honestidad: la respuesta más común es NO (conviene=false) — crecer sin caso quema \
+presupuesto y fragmenta la señal. Con las campañas base en aprendizaje, solo señales EXTERNAS \
+(estacionalidad, vigía) justifican expandir, nunca su rendimiento de pocos días. confianza=alta \
+SOLO si apostarías tu propio presupuesto. Si declaras conviene=true con confianza alta, el \
+sistema te pedirá el plan completo automáticamente y llegará al dueño como ✨propuesta.
 
 CONCIENCIA DEL PERÍODO DE APRENDIZAJE (en_aprendizaje=true → campaña con <7 días en Google Ads):
 - Durante el aprendizaje, el algoritmo de puja está calibrando. Cambios grandes lo RESETEAN y \
