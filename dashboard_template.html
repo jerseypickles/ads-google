@@ -537,6 +537,7 @@
   .st-chip { font-size: 11px; font-weight: 700; letter-spacing: .05em; padding: 2px 9px; border-radius: 6px; }
   .st-DRAFT { color: #8a6400; background: color-mix(in srgb, var(--warning) 18%, transparent); }
   .st-LIVE { color: var(--good-text); background: color-mix(in srgb, var(--good) 13%, transparent); }
+  .st-PROPUESTA { color: var(--shop-ink); background: color-mix(in srgb, var(--shop) 14%, transparent); }
   .row-del { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 2px 6px; }
   .row-del:hover { color: var(--critical); }
   .row-view {
@@ -630,7 +631,6 @@
   <div class="brand">Jersey Pickles<small>Ads Intelligence</small></div>
   <div class="nav">
     <a href="#panel" data-view="panel" class="active"><span class="ndot"></span>Panel</a>
-    <a href="#listings" data-view="listings"><span class="ndot"></span>Listings</a>
     <a href="#campaigns" data-view="campaigns"><span class="ndot"></span>Campañas</a>
     <a href="#merchant" data-view="merchant"><span class="ndot"></span>Merchant</a>
     <a href="#pixel" data-view="pixel"><span class="ndot"></span>Salud del pixel</a>
@@ -648,7 +648,7 @@
     <div>
       <p class="eyebrow">Google Ads · Cuenta 488-882-3590 · EE.UU. · Inglés</p>
       <h1>Jersey Pickles — Inteligencia de keywords</h1>
-      <p class="meta">Investigación validada con la API oficial de Google Ads. Oportunidades de búsqueda con datos frescos, tendencias vigiladas por Fable, y campañas nuevas listas en Listings. Empezamos de cero — sin el lastre de las campañas viejas.</p>
+      <p class="meta">Investigación validada con la API oficial de Google Ads. Oportunidades de búsqueda con datos frescos, tendencias vigiladas por Fable, y campañas nuevas que llegan como ✨propuestas directo a Campañas. Empezamos de cero — sin el lastre de las campañas viejas.</p>
     </div>
     <div class="meta-chips">
       <span class="chip">Datos: 1 ago 2026</span>
@@ -782,6 +782,11 @@
         <button class="lvl-tab" data-r="14d">14 días</button>
         <button class="lvl-tab" data-r="30d">30 días</button>
       </div>
+      <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="gen-btn" id="gen-search" style="padding:7px 13px;font-size:12px">⚡ Propuesta Search</button>
+        <button class="gen-btn shop" id="gen-shop" style="padding:7px 13px;font-size:12px">🛒 Jugada Shopping</button>
+        <small id="gen-status" style="color:var(--muted)"></small>
+      </span>
     </div>
     <div id="mgr-filter"></div>
     <div id="mgr-out"><div class="plan-empty">Cargando…</div></div>
@@ -1052,11 +1057,11 @@ const VIEWS = { panel: $('#view-panel'), listings: $('#view-listings'), campaign
 let mgrTimer = null;
 function route() {
   const h = location.hash;
-  const v = h === '#listings' ? 'listings' : h === '#pixel' ? 'pixel' : h === '#campaigns' ? 'campaigns' : h === '#merchant' ? 'merchant' : 'panel';
+  if (h === '#listings') { location.hash = '#campaigns'; return; }
+  const v = h === '#pixel' ? 'pixel' : h === '#campaigns' ? 'campaigns' : h === '#merchant' ? 'merchant' : 'panel';
   for (const [k, el] of Object.entries(VIEWS)) el.hidden = k !== v;
   document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.dataset.view === v));
   if (mgrTimer) { clearInterval(mgrTimer); mgrTimer = null; }
-  if (v === 'listings') { loadPlan(); loadShoppingPlan(); }
   if (v === 'pixel') loadPixel();
   if (v === 'merchant') loadProducts();
   if (v === 'campaigns') {
@@ -1248,7 +1253,7 @@ function renderManager() {
   $('#mgr-filter').innerHTML = chips;
 
   if (!cs.length) {
-    $('#mgr-out').innerHTML = '<div class="plan-empty">Aún no hay campañas aceptadas.<br>Ve a <a href="#listings"><b>Listings</b></a> y pulsa <b>“✓ Aceptar listing”</b> en las que te convenzan.</div>';
+    $('#mgr-out').innerHTML = '<div class="plan-empty">Aún no hay campañas. Pulsa <b>“⚡ Propuesta Search”</b> o <b>“🛒 Jugada Shopping”</b> y Fable diseñará una — llegará aquí como ✨propuesta.</div>';
     return;
   }
 
@@ -1267,7 +1272,7 @@ function renderManager() {
       html += `<tr data-camp="${c.id}">
         <td><button class="sw${c.enabled ? ' on' : ''}" data-id="${c.id}" title="Se lanzará activa o en pausa"></button></td>
         <td><b>${esc(c.name)}</b> <span class="mtag ${c.type === 'SHOPPING' ? 'mtag-SHOP' : 'mtag-PHRASE'}" style="font-size:9.5px">${c.type === 'SHOPPING' ? '🛒 SHOPPING' : 'SEARCH'}</span><br><small style="color:var(--muted)">${c.type === 'SHOPPING' ? 'productos del Merchant' : esc(c.match_role || '')} · ${(c.ad_groups || []).length} grupos</small></td>
-        <td><span class="st-chip st-${c.status}">${c.status === 'DRAFT' ? 'Borrador' : 'En Google Ads'}</span>${(() => {
+        <td><span class="st-chip st-${c.status}">${c.status === 'PROPUESTA' ? '✨ Propuesta de Fable' : c.status === 'DRAFT' ? 'Borrador' : 'En Google Ads'}</span>${(() => {
           if (c.status !== 'LIVE' || !c.pushed_at) return '';
           const days = Math.floor((Date.now() - new Date(c.pushed_at.replace(' ', 'T'))) / 86400000);
           return days < 7 ? `<br><small style="color:var(--muted)">🎓 aprendizaje · día ${days + 1} de 7</small>` : '';
@@ -1277,7 +1282,9 @@ function renderManager() {
         <td class="num">${mN(m.impr)}</td><td class="num">${mN(m.clicks)}</td><td class="num">${mPct(m.ctr)}</td>
         <td class="num">${m$(m.cost)}</td><td class="num">${mN(m.conv)}</td>
         <td class="num">${m$(m.value)}</td><td class="num">${mRoas(m)}</td><td class="num">${m$(m.cpa)}</td>
-        <td style="white-space:nowrap"><button class="row-view" data-vt="camp" data-vc="${c.id}">Ver</button> <button class="row-del" data-del="${c.id}" title="Quitar del gestor">✕</button> <span class="drill">›</span></td></tr>`;
+        <td style="white-space:nowrap">${c.status === 'PROPUESTA'
+          ? `<button class="row-view" data-launch="${c.id}" style="color:var(--good-text);font-weight:700">🚀 Lanzar</button> <button class="row-view" data-reject="${c.id}">✕</button> <button class="row-view" data-vt="camp" data-vc="${c.id}">Ver</button>`
+          : `<button class="row-view" data-vt="camp" data-vc="${c.id}">Ver</button> <button class="row-del" data-del="${c.id}" title="Quitar del gestor">✕</button>`} <span class="drill">›</span></td></tr>`;
     }
   } else if (MGR.level === 'group') {
     html += `<thead><tr><th>Grupo de anuncios</th><th>Campaña</th><th class="num">Kws</th><th class="num">Impr.</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Coste</th><th class="num">Conv.</th><th class="num">Valor</th><th class="num">ROAS</th><th></th></tr></thead><tbody>`;
@@ -1318,6 +1325,61 @@ function renderManager() {
   $('#mgr-out').innerHTML = html;
 }
 
+async function launchCamp(id, btn) {
+  if (!confirm('¿Aceptar la propuesta y SUBIRLA a Google Ads ahora? El switch verde decide si nace activa o en pausa.')) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Subiendo…'; }
+  try {
+    const r = await (await fetch('/api/campaigns/launch', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) })).json();
+    if (!r.ok) { alert('✕ ' + (r.reason || 'error')); if (btn) { btn.disabled = false; btn.textContent = '🚀 Lanzar'; } return; }
+    if (!r.launching) { loadManager(); return; }
+  } catch (e) { alert('✕ error de conexión'); return; }
+  const t = setInterval(async () => {
+    try {
+      const s = await (await fetch('/api/campaigns/launch/status?id=' + encodeURIComponent(id))).json();
+      if (s.running === false) {
+        clearInterval(t);
+        alert(s.ok ? s.msg : '✕ ' + s.msg);
+        loadManager();
+      }
+    } catch (e) {}
+  }, 3000);
+}
+async function rejectCamp(id) {
+  if (!confirm('¿Rechazar esta propuesta? Se elimina del gestor y Fable aprende que no te convenció.')) return;
+  const r = await (await fetch('/api/campaigns/reject', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) })).json();
+  if (!r.ok) { alert('✕ ' + (r.reason || 'error')); return; }
+  loadManager();
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('#mgr-out')) return;  // la tabla ya tiene su propio handler
+  const ln = e.target.closest('[data-launch]');
+  if (ln) { launchCamp(ln.dataset.launch, ln); return; }
+  const rj = e.target.closest('[data-reject]');
+  if (rj) rejectCamp(rj.dataset.reject);
+});
+function _genWatch(endpoint, label) {
+  const st = $('#gen-status');
+  if (st) st.textContent = '⚡ Fable diseñando ' + label + '… (3-8 min, esta vista avisa sola)';
+  const t = setInterval(async () => {
+    try {
+      const j = await (await fetch(endpoint)).json();
+      if (!j.running) {
+        clearInterval(t);
+        if (st) st.textContent = j.error ? '✕ ' + j.error.slice(0, 90) : '✨ propuesta lista — revísala en la tabla';
+        loadManager();
+      }
+    } catch (e) {}
+  }, 10000);
+}
+if ($('#gen-search')) $('#gen-search').addEventListener('click', async () => {
+  await fetch('/api/plan/generate', { method: 'POST' });
+  _genWatch('/api/plan', 'Search');
+});
+if ($('#gen-shop')) $('#gen-shop').addEventListener('click', async () => {
+  await fetch('/api/shopping/plan/generate', { method: 'POST' });
+  _genWatch('/api/shopping/plan', 'Shopping');
+});
+
 document.querySelectorAll('#mgr-tabs .lvl-tab').forEach(t =>
   t.addEventListener('click', () => { MGR.level = t.dataset.lvl; renderManager(); }));
 
@@ -1349,7 +1411,14 @@ function drawerCampaign(c) {
   const h = healthOf(c.name);
   openDrawer(`
     <div class="camp-role"${c.type === 'SHOPPING' ? ' style="color:var(--shop-ink)"' : ''}>${c.type === 'SHOPPING' ? '🛒 SHOPPING · PRODUCTOS' : esc(c.match_role || '')}</div><h2>${esc(c.name)}</h2>
-    <div class="d-sub"><span class="st-chip st-${c.status}">${c.status === 'DRAFT' ? 'Borrador' : c.status}</span> · aceptada ${esc(c.accepted_at || '')} · ${c.enabled ? 'se lanzará activa' : 'se lanzará en pausa'}</div>
+    <div class="d-sub"><span class="st-chip st-${c.status}">${c.status === 'PROPUESTA' ? '✨ Propuesta de Fable' : c.status === 'DRAFT' ? 'Borrador' : c.status}</span> · ${c.status === 'PROPUESTA' ? `propuesta ${esc(c.proposed_at || '')}` : `aceptada ${esc(c.accepted_at || '')}`} · ${c.enabled ? 'se lanzará activa' : 'se lanzará en pausa'}</div>
+    ${c.status === 'PROPUESTA' ? `<div class="d-section" style="border-left:3px solid var(--shop);padding-left:12px">
+      <h4>✨ Por qué Fable la propone</h4>
+      <p class="note" style="max-width:none">${esc(c.strategy_summary || '')}</p>
+      <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+        <button class="accept-btn" data-launch="${c.id}">🚀 Aceptar y lanzar</button>
+        <button data-reject="${c.id}" style="border:1px solid var(--hairline);border-radius:9px;padding:9px 16px;background:var(--card);cursor:pointer;color:var(--critical)">✕ Rechazar</button>
+      </div></div>` : ''}
     <div class="d-metrics">
       <div class="d-metric"><div class="v">$${c.daily_budget_usd}</div><div class="l">Presup./día</div></div>
       <div class="d-metric"><div class="v">${mN(m.impr)}</div><div class="l">Impresiones</div></div>
@@ -1424,11 +1493,15 @@ $('#mgr-out').addEventListener('click', async e => {
   const del = e.target.closest('.row-del');
   if (del) {
     e.stopPropagation();
-    if (!confirm('¿Quitar esta campaña del gestor? (el listing seguirá en Listings)')) return;
+    if (!confirm('¿Quitar esta campaña del gestor?')) return;
     await fetch('/api/campaigns/delete', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: del.dataset.del }) });
     loadManager();
     return;
   }
+  const ln = e.target.closest('[data-launch]');
+  if (ln) { e.stopPropagation(); launchCamp(ln.dataset.launch, ln); return; }
+  const rj = e.target.closest('[data-reject]');
+  if (rj) { e.stopPropagation(); rejectCamp(rj.dataset.reject); return; }
   const vw = e.target.closest('.row-view');
   if (vw) {
     e.stopPropagation();

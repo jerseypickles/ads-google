@@ -329,10 +329,71 @@ def index():
 _plan_state = {"running": False, "error": None}
 
 
+def _ingest_search_proposals() -> list:
+    """Campañas nuevas del plan → gestor como ✨PROPUESTA (se aceptan en Campañas)."""
+    plan = fable.load_plan() or {}
+    store = _load_camps()
+    existing = {c["name"] for c in store["campaigns"]}
+    added = []
+    for c in plan.get("campaigns", []):
+        if c["name"] in existing:
+            continue
+        entry = dict(c)
+        entry["id"] = f"c{int(time.time() * 1000)}_{len(store['campaigns'])}"
+        entry["status"] = "PROPUESTA"
+        entry["enabled"] = True
+        entry["proposed_at"] = time.strftime("%Y-%m-%d %H:%M")
+        entry["strategy_summary"] = plan.get("strategy_summary", "")
+        for gi, g in enumerate(entry.get("ad_groups", [])):
+            g["id"] = f"{entry['id']}_g{gi}"
+        store["campaigns"].append(entry)
+        added.append(c["name"])
+    if added:
+        for n in plan.get("negatives", []):
+            if n not in store["negatives"]:
+                store["negatives"].append(n)
+        _save_camps(store)
+        _kick_review()
+        print(f"[propuestas] nuevas en el gestor: {added}", flush=True)
+    return added
+
+
+def _ingest_shopping_proposal() -> list:
+    plan = fable.load_shopping_plan() or {}
+    camp = plan.get("campaign") or {}
+    if not camp.get("name") or not camp.get("product_groups"):
+        return []  # "aún no toca" o plan vacío
+    store = _load_camps()
+    if any(c["name"] == camp["name"] for c in store["campaigns"]):
+        return []
+    entry = dict(camp)
+    entry["type"] = "SHOPPING"
+    entry["id"] = f"c{int(time.time() * 1000)}_{len(store['campaigns'])}"
+    entry["status"] = "PROPUESTA"
+    entry["enabled"] = True
+    entry["proposed_at"] = time.strftime("%Y-%m-%d %H:%M")
+    entry["negatives"] = plan.get("negatives", [])
+    entry["scaling_plan"] = plan.get("scaling_plan", [])
+    entry["strategy_summary"] = plan.get("strategy_summary", "")
+    entry["ad_groups"] = [
+        dict(id=f"{entry['id']}_g{gi}", name=g["name"], rationale=g.get("rationale", ""),
+             products=("todo el catálogo" if g.get("all_products")
+                       else f"{len(g.get('item_ids') or [])} productos"),
+             cpc_bid_usd=g.get("cpc_bid_usd"), keywords=[])
+        for gi, g in enumerate(camp.get("product_groups", []))
+    ]
+    store["campaigns"].append(entry)
+    _save_camps(store)
+    _kick_review()
+    print(f"[propuestas] nueva shopping en el gestor: {camp['name']}", flush=True)
+    return [camp["name"]]
+
+
 def _run_plan_generation() -> None:
     try:
         fable.generate_plan()
         _plan_state["error"] = None
+        _ingest_search_proposals()
     except Exception as exc:
         _plan_state["error"] = str(exc)
         print(f"[fable] error: {traceback.format_exc()}", flush=True)
@@ -365,6 +426,7 @@ def _run_shopping_generation() -> None:
     try:
         fable.generate_shopping_plan()
         _shopping_state["error"] = None
+        _ingest_shopping_proposal()
     except Exception as exc:
         _shopping_state["error"] = str(exc)
         print(f"[fable-shopping] error: {traceback.format_exc()}", flush=True)
@@ -768,6 +830,63 @@ def campaigns_delete():
     store = _load_camps()
     store["campaigns"] = [c for c in store["campaigns"] if c["id"] != body.get("id")]
     _save_camps(store)
+    return jsonify(ok=True)
+
+
+# --- propuestas de Fable: aceptar (=subir a Google Ads) o rechazar, desde Campañas ---
+_launch_state: dict = {}  # id -> {running, ok, msg}
+
+
+@app.route("/api/campaigns/launch", methods=["POST"])
+def campaigns_launch():
+    body = request.get_json(silent=True) or {}
+    cid = body.get("id")
+    camp = next((c for c in _load_camps()["campaigns"] if c["id"] == cid), None)
+    if not camp:
+        return jsonify(ok=False, reason="campaña no encontrada"), 404
+    if camp.get("status") == "LIVE":
+        return jsonify(ok=True, msg="ya está en Google Ads")
+    st = _launch_state.get(cid)
+    if st and st.get("running"):
+        return jsonify(ok=False, reason="ya se está subiendo"), 409
+    _launch_state[cid] = {"running": True}
+    name = camp["name"]
+
+    def _go():
+        try:
+            import push_campaign
+            msg = push_campaign.run(name)
+            _launch_state[cid] = {"running": False, "ok": True, "msg": msg}
+            fable.learn(f"El dueño aceptó y se lanzó la propuesta '{name}'.")
+        except Exception as exc:
+            _launch_state[cid] = {"running": False, "ok": False, "msg": str(exc)[:300]}
+            print(f"[launch] error en '{name}': {exc}", flush=True)
+        _live_cache.clear()
+        _kick_review()
+
+    threading.Thread(target=_go, daemon=True).start()
+    return jsonify(ok=True, launching=True)
+
+
+@app.route("/api/campaigns/launch/status")
+def campaigns_launch_status():
+    return jsonify(_launch_state.get(request.args.get("id"), {}))
+
+
+@app.route("/api/campaigns/reject", methods=["POST"])
+def campaigns_reject():
+    body = request.get_json(silent=True) or {}
+    cid = body.get("id")
+    store = _load_camps()
+    camp = next((c for c in store["campaigns"] if c["id"] == cid), None)
+    if not camp:
+        return jsonify(ok=False, reason="campaña no encontrada"), 404
+    if camp.get("status") == "LIVE":
+        return jsonify(ok=False, reason="está VIVA en Google Ads — páusala allá, no se rechaza"), 400
+    store["campaigns"] = [c for c in store["campaigns"] if c["id"] != cid]
+    _save_camps(store)
+    mongo.save("rejected_proposals", {"name": camp["name"], "type": camp.get("type", "SEARCH")})
+    fable.learn(f"El dueño RECHAZÓ la propuesta '{camp['name']}' — no volver a proponer la misma estructura sin datos nuevos que la justifiquen.")
     return jsonify(ok=True)
 
 

@@ -44,6 +44,26 @@ def die(msg: str) -> None:
     sys.exit(1)
 
 
+STORE_PATH = BASE / "campaigns_local.json"
+
+
+def _load_store() -> dict:
+    if STORE_PATH.exists():
+        return json.loads(STORE_PATH.read_text(encoding="utf-8"))
+    import db as mongo
+    doc = mongo.get_doc("manager", {"_id": "store"})
+    return (doc or {}).get("store") or {"campaigns": [], "negatives": []}
+
+
+def _save_store(store: dict) -> None:
+    STORE_PATH.write_text(json.dumps(store, ensure_ascii=False, indent=1), encoding="utf-8")
+    try:
+        import db as mongo
+        mongo.upsert("manager", {"_id": "store"}, {"store": store})
+    except Exception:
+        pass
+
+
 MERCHANT_ID = 5080357407  # Jersey Pickles (5564945299 es Jersey Plastic — ajeno)
 
 
@@ -106,14 +126,13 @@ def _listing_tree_ops(client, ag_rn: str, include_ids: list, exclude_ids: list,
     return ops
 
 
-def push_shopping(camp: dict, store: dict, store_path: Path) -> None:
+def push_shopping(camp: dict, store: dict) -> str:
     """Sube una campaña Shopping estándar del gestor a Google Ads."""
     import validate_plan
     issues = [i for i in validate_plan.check_shopping(camp) if i[0] == "ERROR"]
     if issues:
-        for _, where, msg in issues:
-            print(f"[BLOQUEADO] {where}: {msg}", file=sys.stderr)
-        die("el validador encontró errores — no se sube nada")
+        detalle = "; ".join(f"{w}: {m}" for _, w, m in issues)
+        raise RuntimeError(f"validador: {detalle}")
     print("✓ Validador pre-vuelo (shopping): sin errores")
 
     client = GoogleAdsClient.load_from_storage(str(BASE / "google-ads.yaml"))
@@ -230,35 +249,33 @@ def push_shopping(camp: dict, store: dict, store_path: Path) -> None:
     camp["status"] = "LIVE"
     camp["google"] = google_ids
     camp["pushed_at"] = time.strftime("%Y-%m-%d %H:%M")
-    store_path.write_text(json.dumps(store, ensure_ascii=False, indent=1), encoding="utf-8")
+    _save_store(store)
     estado = "ENCENDIDA — sirve en cuanto Google apruebe" if launch_on else "EN PAUSADO"
-    print(f"\n🚀 SUBIDA COMPLETA — campaña Shopping en Google Ads, {estado}.")
+    msg = f"🚀 SUBIDA COMPLETA — campaña Shopping en Google Ads, {estado}."
+    print("\n" + msg)
+    return msg
 
 
-def main() -> None:
-    if len(sys.argv) < 2:
-        die("falta el nombre de la campaña")
-    target_name = sys.argv[1]
-
-    store_path = BASE / "campaigns_local.json"
-    store = json.loads(store_path.read_text(encoding="utf-8"))
+def run(target_name: str) -> str:
+    """Sube una campaña por nombre. Lanzable desde el panel; lanza RuntimeError si algo bloquea."""
+    store = _load_store()
     camp = next((c for c in store["campaigns"] if c["name"] == target_name), None)
     if not camp:
-        die(f"'{target_name}' no está en el gestor")
+        raise RuntimeError(f"'{target_name}' no está en el gestor")
     if camp.get("status") == "LIVE":
-        die("esa campaña ya está en Google Ads")
-
+        raise RuntimeError("esa campaña ya está en Google Ads")
     if (camp.get("type") or "").upper() == "SHOPPING":
-        push_shopping(camp, store, store_path)
-        return
+        return push_shopping(camp, store)
+    return push_search(camp, store)
 
+
+def push_search(camp: dict, store: dict) -> str:
     # pre-flight: validador de reglas duras
     import validate_plan
     issues = [i for i in validate_plan.check({"campaigns": [camp]}) if i[0] == "ERROR"]
     if issues:
-        for _, where, msg in issues:
-            print(f"[BLOQUEADO] {where}: {msg}", file=sys.stderr)
-        die("el validador encontró errores — no se sube nada")
+        detalle = "; ".join(f"{w}: {m}" for _, w, m in issues)
+        raise RuntimeError(f"validador: {detalle}")
     print("✓ Validador pre-vuelo: sin errores")
 
     client = GoogleAdsClient.load_from_storage(str(BASE / "google-ads.yaml"))
@@ -387,10 +404,21 @@ def main() -> None:
     camp["status"] = "LIVE"
     camp["google"] = google_ids
     camp["pushed_at"] = time.strftime("%Y-%m-%d %H:%M")
-    store_path.write_text(json.dumps(store, ensure_ascii=False, indent=1), encoding="utf-8")
+    _save_store(store)
     estado = "ENCENDIDA — empieza a servir en cuanto Google apruebe los anuncios" if launch_on \
         else "EN PAUSADO — enciéndela cuando quieras"
-    print(f"\n🚀 SUBIDA COMPLETA — la campaña está en Google Ads, {estado}.")
+    msg = f"🚀 SUBIDA COMPLETA — la campaña está en Google Ads, {estado}."
+    print("\n" + msg)
+    return msg
+
+
+def main() -> None:
+    if len(sys.argv) < 2:
+        die("falta el nombre de la campaña")
+    try:
+        run(sys.argv[1])
+    except RuntimeError as exc:
+        die(str(exc))
 
 
 if __name__ == "__main__":
