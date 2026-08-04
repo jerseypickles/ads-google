@@ -1270,7 +1270,7 @@ function renderManager() {
         })()}</td>
         <td>${h ? `<span class="health-chip health-${h.salud}" title="${esc((h.notas || [])[0] || '')}">${HICON[h.salud] || h.salud}</span>` : '—'}${(() => {
           const n = pendingFor(c.name).length;
-          return n ? `<br><span class="chip" style="margin-top:4px;color:#8a6400;border-color:var(--warning);cursor:pointer" title="mejoras propuestas — abre la campaña">🔧 ${n}</span>` : '';
+          return n ? `<br><span class="chip" data-vt="camp" data-vc="${c.id}" style="margin-top:4px;color:#8a6400;border-color:var(--warning);cursor:pointer" title="mejoras propuestas — clic para abrir">🔧 ${n}</span>` : '';
         })()}</td>
         <td class="num">$${c.daily_budget_usd}</td>
         <td class="num">${mN(m.impr)}</td><td class="num">${mN(m.clicks)}</td><td class="num">${mPct(m.ctr)}</td>
@@ -1521,7 +1521,7 @@ $('#mgr-out').addEventListener('click', async e => {
   if (ln) { e.stopPropagation(); launchCamp(ln.dataset.launch, ln); return; }
   const rj = e.target.closest('[data-reject]');
   if (rj) { e.stopPropagation(); rejectCamp(rj.dataset.reject); return; }
-  const vw = e.target.closest('.row-view');
+  const vw = e.target.closest('.row-view, [data-vt]');
   if (vw) {
     e.stopPropagation();
     if (vw.dataset.vt === 'camp') { const c = findCamp(vw.dataset.vc); if (c) drawerCampaign(c); }
