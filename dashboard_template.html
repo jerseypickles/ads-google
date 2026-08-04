@@ -1128,29 +1128,20 @@ function renderActionsInbox() {
   }
   const pending = acts.filter(a => !isApplied(a));
   const applied = acts.length - pending.length;
+  const autoN = (MGR.applied || []).filter(e => e.ok && e.auto).length;
   if (!pending.length) {
-    box.innerHTML = applied ? `<p class="plan-meta" style="margin:0">✓ Las ${applied} acciones propuestas por Fable ya están aplicadas.</p>` : '';
+    box.innerHTML = applied ? `<p class="plan-meta" style="margin:0">✓ Las ${applied} mejoras de Fable ya están aplicadas${autoN ? ` (${autoN} 🤖 automáticas)` : ''}.</p>` : '';
     return;
   }
-  box.innerHTML = `<section class="card span-12" style="border-left:4px solid var(--warning)">
-    <div class="card-head">
-      <h2>⚙️ Bandeja de acciones — ${pending.length} pendiente${pending.length > 1 ? 's' : ''}</h2>
-      <span class="fable-badge">⚡ propuestas por Fable con evidencia</span>
-    </div>
-    <p class="note">Un clic en “Aplicar” y el cambio se ejecuta en Google Ads al instante. ${applied ? `✓ ${applied} ya aplicadas.` : ''}</p>
-    ${pending.map(a => {
-      const urg = { alta: 'health-critico', media: 'health-atencion', baja: 'health-ok' }[a.urgencia] || 'health-ok';
-      return `<div class="d-list-row" style="cursor:default;align-items:flex-start">
-        <span style="flex:1;min-width:0">
-          <span class="health-chip ${urg}">${esc(a.urgencia || '')}</span>
-          <b style="margin-left:7px">${ACT_LABEL[a.tipo] || esc(a.tipo)}</b>
-          ${a.objetivo ? ` · “${esc(a.objetivo)}”` : ''}${a.valor ? ` · $${a.valor}` : ''}
-          <span style="color:var(--muted)"> — ${esc(a.campana).replace('JP | Search | ', '').replace(' — US', '')}</span>
-          <br><small style="color:var(--ink-2)">${esc(a.razon || '')}</small></span>
-        <button class="row-view" data-apply='${esc(JSON.stringify(a))}'>Aplicar</button>
-      </div>`;
-    }).join('')}
-  </section>`;
+  // sin card gigante: las mejoras viven DENTRO de cada campaña (chip 🔧 + drawer)
+  box.innerHTML = `<div class="plan-status" style="border-left:3px solid var(--warning)">
+    🔧 <b>${pending.length} mejora${pending.length > 1 ? 's' : ''} propuesta${pending.length > 1 ? 's' : ''}</b> esperando tu visto —
+    busca el chip 🔧 en la fila de cada campaña y ábrela para revisar y aplicar.${applied ? ` ✓ ${applied} ya aplicadas${autoN ? ` (${autoN} 🤖 auto)` : ''}.` : ''}</div>`;
+}
+
+function pendingFor(name) {
+  const rev = MGR.review && MGR.review.review;
+  return ((rev && rev.acciones_propuestas) || []).filter(a => a.campana === name && !isApplied(a));
 }
 
 $('#actions-inbox').addEventListener('click', async e => {
@@ -1277,7 +1268,10 @@ function renderManager() {
           const days = Math.floor((Date.now() - new Date(c.pushed_at.replace(' ', 'T'))) / 86400000);
           return days < 7 ? `<br><small style="color:var(--muted)">🎓 aprendizaje · día ${days + 1} de 7</small>` : '';
         })()}</td>
-        <td>${h ? `<span class="health-chip health-${h.salud}" title="${esc((h.notas || [])[0] || '')}">${HICON[h.salud] || h.salud}</span>` : '—'}</td>
+        <td>${h ? `<span class="health-chip health-${h.salud}" title="${esc((h.notas || [])[0] || '')}">${HICON[h.salud] || h.salud}</span>` : '—'}${(() => {
+          const n = pendingFor(c.name).length;
+          return n ? `<br><span class="chip" style="margin-top:4px;color:#8a6400;border-color:var(--warning);cursor:pointer" title="mejoras propuestas — abre la campaña">🔧 ${n}</span>` : '';
+        })()}</td>
         <td class="num">$${c.daily_budget_usd}</td>
         <td class="num">${mN(m.impr)}</td><td class="num">${mN(m.clicks)}</td><td class="num">${mPct(m.ctr)}</td>
         <td class="num">${m$(m.cost)}</td><td class="num">${mN(m.conv)}</td>
@@ -1350,12 +1344,23 @@ async function rejectCamp(id) {
   if (!r.ok) { alert('✕ ' + (r.reason || 'error')); return; }
   loadManager();
 }
-document.addEventListener('click', e => {
-  if (e.target.closest('#mgr-out')) return;  // la tabla ya tiene su propio handler
+document.addEventListener('click', async e => {
+  if (e.target.closest('#mgr-out') || e.target.closest('#actions-inbox')) return;  // esos tienen su handler
   const ln = e.target.closest('[data-launch]');
   if (ln) { launchCamp(ln.dataset.launch, ln); return; }
   const rj = e.target.closest('[data-reject]');
-  if (rj) rejectCamp(rj.dataset.reject);
+  if (rj) { rejectCamp(rj.dataset.reject); return; }
+  const ap = e.target.closest('[data-apply]');
+  if (ap) {
+    const a = JSON.parse(ap.dataset.apply);
+    ap.disabled = true; ap.textContent = 'Aplicando…';
+    try {
+      const r = await (await fetch('/api/actions/apply', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ action: a }) })).json();
+      ap.textContent = r.ok ? '✓ hecho' : '✕';
+      if (!r.ok) alert('✕ ' + (r.msg || 'error'));
+    } catch (err) { ap.disabled = false; ap.textContent = 'Aplicar'; return; }
+    loadManager();
+  }
 });
 function _genWatch(endpoint, label) {
   const st = $('#gen-status');
@@ -1438,6 +1443,20 @@ function drawerCampaign(c) {
     <div class="d-section"><h4>Grupos de anuncios (${(c.ad_groups || []).length})</h4>
       ${(c.ad_groups || []).map(g => `<div class="d-list-row" data-open-camp="${c.id}" data-open-group="${g.id}"><span><b>${esc(g.name)}</b></span><span style="color:var(--muted)">${c.type === 'SHOPPING' ? esc(g.products || '') + ' · CPC $' + (g.cpc_bid_usd ?? '—') : (g.keywords || []).length + ' kws · 1 RSA'} ›</span></div>`).join('')}</div>
     ${c.cross_negatives && c.cross_negatives.length ? `<div class="d-section"><h4>Negativas de flujo (${c.cross_negatives.length})</h4><div class="neg-chips">${c.cross_negatives.map(n => `<span class="neg">${esc(n)}</span>`).join('')}</div></div>` : ''}
+    ${(() => {
+      const pend = pendingFor(c.name);
+      if (!pend.length) return '';
+      return `<div class="d-section" style="border-left:3px solid var(--warning);padding-left:12px">
+        <h4>🔧 Mejoras propuestas (${pend.length})</h4>
+        ${pend.map(a => {
+          const urg = { alta: 'health-critico', media: 'health-atencion', baja: 'health-ok' }[a.urgencia] || 'health-ok';
+          return `<div class="d-list-row" style="cursor:default;align-items:flex-start;gap:10px">
+            <span style="flex:1;min-width:0"><span class="health-chip ${urg}">${esc(a.urgencia || '')}</span>
+              <b style="margin-left:6px">${ACT_LABEL[a.tipo] || esc(a.tipo)}</b>${a.objetivo ? ` · “${esc(a.objetivo)}”` : ''}${a.valor ? ` · ${a.valor}` : ''}
+              <br><small style="color:var(--ink-2)">${esc(a.razon || '')}</small></span>
+            <button class="row-view" data-apply='${esc(JSON.stringify(a))}' style="flex:none">Aplicar</button></div>`;
+        }).join('')}</div>`;
+    })()}
     ${c.type === 'SHOPPING' && (c.scaling_plan || []).length ? `<div class="d-section"><h4>📈 Hoja de escalado (${c.scaling_plan.length} fases)</h4>
       ${c.scaling_plan.map((f, i) => `<div class="d-list-row" style="cursor:default"><span><b>${i + 1}. ${esc(f.fase || '')}</b><br><small style="color:var(--muted)">Cuándo: ${esc(f.cuando || '')}</small><br><small>${esc(f.accion || '')}</small></span></div>`).join('')}</div>` : ''}
   `);
