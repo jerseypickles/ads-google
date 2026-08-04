@@ -16,6 +16,7 @@ Con salvaguardas: una negativa nunca puede bloquear una keyword activa de la
 propia campaña, y los valores de dinero tienen límites duros.
 """
 
+import re
 from pathlib import Path
 
 from google.ads.googleads.client import GoogleAdsClient
@@ -24,6 +25,12 @@ from google.protobuf import field_mask_pb2
 
 BASE = Path(__file__).parent
 CUSTOMER_ID = "4888823590"
+
+
+def _clean_kw(text: str) -> str:
+    """Fable a veces etiqueta la concordancia en el texto: 'kw [EXACT]' → 'kw'."""
+    t = (text or "").strip().strip('"').strip("'").strip("“”‘’")
+    return re.sub(r"\s*\[(EXACT|PHRASE|BROAD)\]\s*$", "", t, flags=re.I).strip()
 
 
 def _client():
@@ -124,7 +131,7 @@ def keyword_7d_stats(campana: str, text: str):
         camp = _campaign_by_name(ga, campana)
         if camp is None:
             return None
-        safe = text.replace("'", "\\'")
+        safe = _clean_kw(text).replace("'", "\\'")
         q = f"""SELECT metrics.cost_micros, metrics.conversions FROM keyword_view
                 WHERE campaign.id = {camp.id} AND segments.date DURING LAST_7_DAYS
                   AND ad_group_criterion.keyword.text = '{safe}'"""
@@ -142,6 +149,8 @@ def apply_action(a: dict) -> dict:
     tipo = a.get("tipo")
     campana = a.get("campana", "")
     objetivo = (a.get("objetivo") or "").strip()
+    if tipo in ("pausar_keyword", "reactivar_keyword", "añadir_negativa", "crear_keyword"):
+        objetivo = _clean_kw(objetivo)
     valor = a.get("valor")
 
     try:
