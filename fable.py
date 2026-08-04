@@ -710,9 +710,38 @@ def _live_deep_data() -> dict:
             p["conv"] = round(p["conv"], 1)
             p["valor"] = round(p["valor"], 2)
 
+        # rentabilidad por CANAL: dónde vive mejor cada dólar (la brújula de asignación)
+        canal_de = {}
+        for c in store.get("campaigns", []):
+            if c.get("status") != "LIVE":
+                continue
+            if (c.get("type") or "").upper() == "SHOPPING":
+                canal_de[c["name"]] = "SHOPPING"
+            elif (c.get("match_role") or "").upper().startswith("EXACT"):
+                canal_de[c["name"]] = "SEARCH-EXACT"
+            else:
+                canal_de[c["name"]] = "SEARCH-PHRASE"
+        por_canal: dict = {}
+        for g in grupos:
+            canal = canal_de.get(g["campana"])
+            if not canal:
+                continue
+            d = por_canal.setdefault(canal, dict(coste=0.0, valor=0.0, conv=0.0))
+            d["coste"] += g["coste"]
+            d["valor"] += g["valor"]
+            d["conv"] += g["conv"]
+        tot = sum(d["coste"] for d in por_canal.values())
+        for d in por_canal.values():
+            d["coste"] = round(d["coste"], 2)
+            d["valor"] = round(d["valor"], 2)
+            d["conv"] = round(d["conv"], 1)
+            d["roas"] = round(d["valor"] / d["coste"], 2) if d["coste"] else None
+            d["cuota_gasto_pct"] = round(d["coste"] / tot * 100) if tot else 0
+
         return {"keywords_7d": kws, "grupos_7d": grupos,
                 "terminos_busqueda_ayer_y_hoy": terms, "funnel_7d": funnel,
                 "productos_shopping_7d": prods,
+                "rentabilidad_por_canal_7d": por_canal,
                 "negativas_activas_por_campana": negativas_activas,
                 "acciones_ya_aplicadas": acciones_aplicadas}
     except Exception:
@@ -807,6 +836,15 @@ presupuesto y fragmenta la señal. Con las campañas base en aprendizaje, solo s
 (estacionalidad, vigía) justifican expandir, nunca su rendimiento de pocos días. confianza=alta \
 SOLO si apostarías tu propio presupuesto. Si declaras conviene=true con confianza alta, el \
 sistema te pedirá el plan completo automáticamente y llegará al dueño como ✨propuesta.
+
+RENTABILIDAD POR CANAL (rentabilidad_por_canal_7d) — tu brújula de asignación: cada dólar debe \
+vivir en el canal que más devuelve. Desde el día 7: si un canal sostiene ROAS claramente \
+superior (≥2x el de otro) con ≥$100 de gasto acumulado en la ventana, propone rebalanceo \
+GRADUAL de presupuesto hacia el ganador (ajustar_presupuesto en pasos de ±20%, nunca de golpe). \
+La expansión hereda el mismo sesgo: campañas nuevas del canal ganador tienen prioridad. Un \
+canal perdedor no se mata: se recorta a su núcleo rentable y se corrige la fuga antes de \
+moverle plata — matar EXACT entera, por ejemplo, regalaría los términos de control a PHRASE \
+sin su precisión de puja.
 
 CONCIENCIA DEL PERÍODO DE APRENDIZAJE (en_aprendizaje=true → campaña con <7 días en Google Ads):
 - Durante el aprendizaje, el algoritmo de puja está calibrando. Cambios grandes lo RESETEAN y \
