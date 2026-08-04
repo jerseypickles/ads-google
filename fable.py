@@ -738,10 +738,31 @@ def _live_deep_data() -> dict:
             d["roas"] = round(d["valor"] / d["coste"], 2) if d["coste"] else None
             d["cuota_gasto_pct"] = round(d["coste"] / tot * 100) if tot else 0
 
+        # cuota de subastas: cuánta demanda se queda sobre la mesa y por qué
+        cuota = []
+        q = f"""SELECT campaign.name, metrics.search_impression_share,
+                metrics.search_budget_lost_impression_share,
+                metrics.search_rank_lost_impression_share
+                FROM campaign WHERE campaign.status = 'ENABLED' AND {rng}"""
+        try:
+            for b in ga.search_stream(customer_id=cid, query=q):
+                for r in b.results:
+                    if r.campaign.name not in live_names:
+                        continue
+                    m = r.metrics
+                    cuota.append(dict(
+                        campana=r.campaign.name,
+                        captura_pct=round(m.search_impression_share * 100),
+                        perdido_por_presupuesto_pct=round(m.search_budget_lost_impression_share * 100),
+                        perdido_por_puja_pct=round(m.search_rank_lost_impression_share * 100)))
+        except Exception:
+            pass
+
         return {"keywords_7d": kws, "grupos_7d": grupos,
                 "terminos_busqueda_ayer_y_hoy": terms, "funnel_7d": funnel,
                 "productos_shopping_7d": prods,
                 "rentabilidad_por_canal_7d": por_canal,
+                "cuota_de_subastas_7d": cuota,
                 "negativas_activas_por_campana": negativas_activas,
                 "acciones_ya_aplicadas": acciones_aplicadas}
     except Exception:
@@ -836,6 +857,11 @@ presupuesto y fragmenta la señal. Con las campañas base en aprendizaje, solo s
 (estacionalidad, vigía) justifican expandir, nunca su rendimiento de pocos días. confianza=alta \
 SOLO si apostarías tu propio presupuesto. Si declaras conviene=true con confianza alta, el \
 sistema te pedirá el plan completo automáticamente y llegará al dueño como ✨propuesta.
+
+CUOTA DE SUBASTAS (cuota_de_subastas_7d) — el medidor de cuánto mercado queda sobre la mesa: \
+perdido_por_presupuesto alto + ROAS sano = LA señal de subir presupuesto (día 7+) o de proponer \
+expansión; perdido_por_puja alto = pujas cortas, no presupuesto. Un canal con ROAS malo NO \
+merece recuperar su cuota perdida — primero se arregla, después se escala.
 
 RENTABILIDAD POR CANAL (rentabilidad_por_canal_7d) — tu brújula de asignación: cada dólar debe \
 vivir en el canal que más devuelve. Desde el día 7: si un canal sostiene ROAS claramente \
