@@ -29,8 +29,9 @@ CUSTOMER_ID = "4888823590"
 
 def _clean_kw(text: str) -> str:
     """Fable a veces etiqueta la concordancia en el texto: 'kw [EXACT]' → 'kw'."""
-    t = (text or "").strip().strip('"').strip("'").strip("“”‘’")
-    return re.sub(r"\s*\[(EXACT|PHRASE|BROAD)\]\s*$", "", t, flags=re.I).strip()
+    t = (text or "").strip()
+    t = re.sub(r"\s*\[(EXACT|PHRASE|BROAD)\]\s*$", "", t, flags=re.I)
+    return t.strip().strip("\"'“”‘’").strip()
 
 
 def _client():
