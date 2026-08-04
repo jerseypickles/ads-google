@@ -2,10 +2,6 @@
  "lessons": [
   {
    "date": "2026-08-02",
-   "lesson": "Los términos transaccionales clican al 100% pagando el tope: 'where to get fermented pickles' hizo 2 clics en 2 impresiones a ~$1.97/clic — la intención 'where to get/buy/best' existe y paga premium; merece keywords y anuncios propios en la promoción del día 7, no solo captura pasiva vía PHRASE."
-  },
-  {
-   "date": "2026-08-02",
    "lesson": "En esta cuenta la exactitud sale cara sin rendir: la EXACT paga CPC medio $1.75 (87% del tope, con muchos clics a $1.86-2.00) frente a $1.28 de la PHRASE por el mismo universo de términos, y convierte peor — el tope $2 no solo apaga el clúster kosher por impresiones, también fija el precio de los mejores clics de la EXACT; al reevaluar presupuestos y topes en el día 7, la prima de la EXACT debe justificarse con datos o recortarse."
   },
   {
@@ -159,6 +155,10 @@
   {
    "date": "2026-08-02",
    "lesson": "El keyword 'homemade pickles' bloquea la defensa anti-DIY: mientras esté activo no se puede negar 'homemade' (chocaría con keyword propia), y por esa puerta entra tráfico DIY como 'homemade bread and butter pickles' ($1.96); el propio keyword lleva $1.47 y 0 conv en 7 días — el día 7 hay que decidir si demuestra valor o se pausa para poder cerrar la puerta con la negativa."
+  },
+  {
+   "date": "2026-08-03",
+   "lesson": "PILOTO NIVEL 2 ACTIVO (política del dueño, 2026-08-03): tus negativas, exclusiones por stock agotado (verificadas en Shopify) y pausas de keyword sangrante (>=$25, 0 conv, verificadas por código) se auto-aplican tras cada revisión. Presupuestos, pujas, crear keywords y campañas nuevas siguen requiriendo aprobación del dueño."
   }
  ]
 }

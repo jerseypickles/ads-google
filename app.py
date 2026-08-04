@@ -543,11 +543,29 @@ def _run_review() -> None:
         _review_state["running"] = False
 
 
-def _kick_review() -> None:
-    if not _review_state["running"]:
-        _review_state["running"] = True
-        _review_state["error"] = None
-        threading.Thread(target=_run_review, daemon=True).start()
+def _kick_review(min_age: float = None) -> None:
+    """Lanza una revisión respetando la cadencia (3h por defecto) — cada una cuesta API.
+
+    min_age=0 la fuerza (acciones del dueño: aceptar/lanzar/botón manual)."""
+    if _review_state["running"]:
+        return
+    if min_age is None:
+        min_age = LIVE_REVIEW_AGE
+    if min_age > 0:
+        last = (fable.CAMP_REVIEW_PATH.stat().st_mtime
+                if fable.CAMP_REVIEW_PATH.exists() else 0)
+        if not last:  # nube recién reiniciada: mirar el espejo
+            doc = mongo.latest("reviews")
+            ts = str((doc or {}).get("ts", ""))[:19]
+            try:
+                last = time.mktime(time.strptime(ts, "%Y-%m-%dT%H:%M:%S"))
+            except Exception:
+                last = 0
+        if time.time() - last < min_age:
+            return
+    _review_state["running"] = True
+    _review_state["error"] = None
+    threading.Thread(target=_run_review, daemon=True).start()
 
 
 @app.route("/api/campaigns")
@@ -831,7 +849,7 @@ def campaigns_review():
 
 @app.route("/api/campaigns/review/generate", methods=["POST"])
 def campaigns_review_generate():
-    _kick_review()
+    _kick_review(min_age=0)  # petición explícita del dueño
     return jsonify(ok=True)
 
 
@@ -864,7 +882,7 @@ def campaigns_accept():
             store["negatives"].append(n)
     _save_camps(store)
     if added:
-        _kick_review()  # Fable lee lo recién aceptado
+        _kick_review(min_age=0)  # Fable lee lo recién aceptado
     return jsonify(ok=True, added=added, store=store)
 
 
@@ -917,7 +935,7 @@ def campaigns_launch():
             _launch_state[cid] = {"running": False, "ok": False, "msg": str(exc)[:300]}
             print(f"[launch] error en '{name}': {exc}", flush=True)
         _live_cache.clear()
-        _kick_review()
+        _kick_review(min_age=0)  # campaña recién lanzada: lectura inmediata
 
     threading.Thread(target=_go, daemon=True).start()
     return jsonify(ok=True, launching=True)
