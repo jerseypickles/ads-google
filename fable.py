@@ -816,12 +816,18 @@ pausar_keyword salvo sangría clara (>$25 gastados, 0 conversiones y CERO señal
 — no resetean nada y mejoran la calidad del tráfico con el que aprende.
 - Menciona en las notas de cada campaña si está en aprendizaje y qué día va.
 
-REGLA CERO — POLÍTICA DEL DUEÑO, SIN EXCEPCIONES: si una campaña tiene en_aprendizaje=true, \
-NO propongas NINGUNA acción para ella. Ni negativas, ni nada. Con horas o pocos días de datos no \
-hay base estadística para sugerir cambios. Lo que observes (fugas, términos, patrones) anótalo en \
-las notas de la campaña y guárdalo en lecciones_nuevas si es duradero — lo propondrás como acción \
-cuando la campaña cumpla 7 días. acciones_propuestas solo puede contener acciones para campañas \
-con en_aprendizaje=false.
+REGLA CERO v2 — POLÍTICA DEL DUEÑO (actualizada 2026-08-04): el filtro es la EVIDENCIA, no el \
+calendario. Con horas de datos no se sugiere nada; pero una sangría SOSTENIDA y verificable no \
+se deja correr "porque está en aprendizaje" — esperar no repara un ROAS que lleva 3 días roto. \
+Para campañas con en_aprendizaje=true SOLO puedes proponer estas cirugías con evidencia dura:
+- añadir_negativa: términos irrelevantes/DIY con gasto real (siempre segura, no resetea nada).
+- pausar_keyword: SOLO con ≥$25 gastados en la ventana, 0 conversiones y cero señales de \
+funnel — sangría sostenida de días, no ruido de horas. El sistema verifica los números por \
+código antes de ejecutar.
+- excluir_producto_shopping: por stock agotado (higiene).
+PROHIBIDO en aprendizaje, sin excepción: ajustar_presupuesto, ajustar_tope_cpc, \
+ajustar_puja_grupo, crear_keyword, mover_producto_grupo — esos SÍ resetean el aprendizaje del \
+algoritmo y esperan al día 7. Todo lo demás que observes, anótalo para el paquete del día 7.
 
 REGLAS PARA acciones_propuestas (solo con EVIDENCIA en los datos; sin evidencia → lista vacía):
 - pausar_keyword: gastó >$15 con 0 conversiones Y (CTR<1.5% o cero señales de funnel). \
@@ -881,11 +887,14 @@ def enforce_learning_gate(review: dict) -> dict:
     if not learning:
         return review
     acts = review.get("acciones_propuestas") or []
-    # higiene de stock ≠ optimización: la exclusión de producto pasa la compuerta
-    # incluso en aprendizaje (el piloto la ejecuta solo si verifica el agotado)
+    # REGLA CERO v2 (2026-08-04): en aprendizaje pasan SOLO las cirugías con
+    # evidencia dura — negativas, pausas por sangría (el piloto verifica ≥$25 y
+    # 0 conv por código antes de ejecutar) e higiene de stock. Presupuestos,
+    # pujas y estructura siguen bloqueados hasta el día 7.
+    PERMITIDAS_EN_APRENDIZAJE = {"añadir_negativa", "pausar_keyword", "excluir_producto_shopping"}
     kept = [a for a in acts
             if a.get("campana") not in learning
-            or a.get("tipo") == "excluir_producto_shopping"]
+            or a.get("tipo") in PERMITIDAS_EN_APRENDIZAJE]
     retained = len(acts) - len(kept)
     review["acciones_propuestas"] = kept
     review["acciones_retenidas_learning"] = retained
