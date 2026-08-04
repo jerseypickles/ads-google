@@ -28,3 +28,12 @@ merchant_images.json
 report_keywords_*.csv
 sync.log
 .anthropic_key
+
+# estado vivo: en la nube manda Mongo, no fotos congeladas del repo
+campaigns_local.json
+fable_campaigns_review.json
+fable_memory.json
+fable_plan.json
+fable_shopping_plan.json
+fable_watch.json
+actions_log.json
