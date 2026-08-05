@@ -1158,34 +1158,31 @@ def products():
                 m["cost"] += r.metrics.cost_micros / 1e6
                 m["conv"] += r.metrics.conversions
                 m["value"] += r.metrics.conversions_value
-        out = []
-        for m in prods.values():
-            m["cost"] = round(m["cost"], 2)
-            m["conv"] = round(m["conv"], 1)
-            m["value"] = round(m["value"], 2)
-            m["roas"] = round(m["value"] / m["cost"], 1) if m["cost"] else None
-            out.append(m)
-        out.sort(key=lambda x: -x["conv"])
-        out = out[:100]
-
-        # métricas de la CAMPAÑA Shopping actual (7 días con hoy) por producto
+        # métricas de la CAMPAÑA Shopping actual (7 días con hoy) por PID de producto
         camp7: dict = {}
+        camp7_titles: dict = {}
         try:
             s7, e7 = _range_dates("7d")
-            q7 = f"""SELECT campaign.id, segments.product_title, metrics.clicks,
-                     metrics.cost_micros, metrics.conversions, metrics.conversions_value
+            q7 = f"""SELECT campaign.id, segments.product_item_id, segments.product_title,
+                     metrics.clicks, metrics.cost_micros, metrics.conversions,
+                     metrics.conversions_value
                      FROM shopping_performance_view
                      WHERE campaign.advertising_channel_type = 'SHOPPING'
                        AND campaign.status = 'ENABLED'
                        AND segments.date BETWEEN '{s7.isoformat()}' AND '{e7.isoformat()}'"""
             for b in ga.search_stream(customer_id="4888823590", query=q7):
                 for r in b.results:
-                    d = camp7.setdefault(r.segments.product_title,
-                                         dict(clicks=0, cost=0.0, conv=0.0, value=0.0))
+                    mm = re.search(r"shopify_[a-z]{2}_(\d+)_",
+                                   (r.segments.product_item_id or "").lower())
+                    if not mm:
+                        continue
+                    pid7 = int(mm.group(1))
+                    d = camp7.setdefault(pid7, dict(clicks=0, cost=0.0, conv=0.0, value=0.0))
                     d["clicks"] += r.metrics.clicks
                     d["cost"] += r.metrics.cost_micros / 1e6
                     d["conv"] += r.metrics.conversions
                     d["value"] += r.metrics.conversions_value
+                    camp7_titles.setdefault(pid7, r.segments.product_title)
             for d in camp7.values():
                 d["cost"] = round(d["cost"], 2)
                 d["conv"] = round(d["conv"], 1)
@@ -1193,6 +1190,37 @@ def products():
                 d["roas"] = round(d["value"] / d["cost"], 1) if d["cost"] else None
         except Exception as exc:
             print(f"[products] camp7: {exc}", flush=True)
+
+        # productos activos en la campaña sin fila histórica → entran igual
+        cubiertos = set()
+        for m in prods.values():
+            cubiertos |= m.get("pids", set())
+        for pid7, t in camp7_titles.items():
+            if pid7 not in cubiertos and t:
+                prods[t] = dict(title=t, impr=0, clicks=0, cost=0.0, conv=0.0,
+                                value=0.0, vids=set(), pids={pid7})
+        out = []
+        for m in prods.values():
+            m["cost"] = round(m["cost"], 2)
+            m["conv"] = round(m["conv"], 1)
+            m["value"] = round(m["value"], 2)
+            m["roas"] = round(m["value"] / m["cost"], 1) if m["cost"] else None
+            hits = [camp7[p] for p in m.get("pids", set()) if p in camp7]
+            if hits:
+                c7 = dict(clicks=sum(h["clicks"] for h in hits),
+                          cost=round(sum(h["cost"] for h in hits), 2),
+                          conv=round(sum(h["conv"] for h in hits), 1),
+                          value=round(sum(h["value"] for h in hits), 2))
+                c7["roas"] = round(c7["value"] / c7["cost"], 1) if c7["cost"] else None
+                m["camp7"] = c7
+            else:
+                m["camp7"] = None
+            out.append(m)
+        # manda la realidad: valor de campaña, luego clics de campaña, luego histórico
+        out.sort(key=lambda x: (-(x["camp7"]["value"] if x["camp7"] else 0),
+                                -(x["camp7"]["clicks"] if x["camp7"] else 0),
+                                -x["conv"]))
+        out = out[:100]
 
         cat = _shopify_catalog()
         imgs = dict(_product_images())
@@ -1210,7 +1238,6 @@ def products():
             own = {i["t"] for i in infos}
             m["variantes"] = [dict(v, own=v["t"] in own)
                               for p in parents[:1] for v in p["variants"]]
-            m["camp7"] = camp7.get(m["title"])  # ventas de la campaña Shopping viva
         issues = _merchant_issues()
         _products_cache[days_n] = {"at": now, "data": out, "issues": issues,
                                    "sin_stock": cat["sin_stock"]}

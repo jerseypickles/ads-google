@@ -805,7 +805,7 @@
       <div>
         <p class="eyebrow">Merchant Center · feed AdNabu desde Shopify</p>
         <h1>Merchant — tu catálogo en los anuncios</h1>
-        <p class="meta">Rendimiento real por producto (histórico PMax + campañas actuales). ⭐ = estrella con ROAS ≥ 20x. Cuando lancemos Shopping, Fable armará los grupos de productos con esta inteligencia — el lanzamiento vivirá en Campañas, como siempre.</p>
+        <p class="meta">Rendimiento REAL de la campaña Shopping en vivo, por producto (7 días). ⭐ = estrella con ROAS ≥ 20x. Cuando lancemos Shopping, Fable armará los grupos de productos con esta inteligencia — el lanzamiento vivirá en Campañas, como siempre.</p>
       </div>
       <div class="lvl-tabs" style="margin-bottom:0">
         <button class="lvl-tab active" data-pd="365">12 meses</button>
@@ -1571,8 +1571,11 @@ async function loadProducts() {
     } catch (e) {}
     const ps = j.products || [];
     if (!ps.length) { out.innerHTML = '<div class="plan-empty">Sin datos de productos en este periodo.</div>'; return; }
-    const totConv = ps.reduce((a, p) => a + p.conv, 0), totVal = ps.reduce((a, p) => a + p.value, 0);
-    const totCost = ps.reduce((a, p) => a + p.cost, 0);
+    const c7 = p => p.camp7 || {};
+    const activos = ps.filter(p => c7(p).clicks);
+    const totConv = ps.reduce((a, p) => a + (c7(p).conv || 0), 0);
+    const totVal = ps.reduce((a, p) => a + (c7(p).value || 0), 0);
+    const totCost = ps.reduce((a, p) => a + (c7(p).cost || 0), 0);
     const iss = j.issues || [], oos = j.sin_stock || [];
     const stockFoot = p => {
       const vs = p.variantes || [];
@@ -1585,9 +1588,9 @@ async function loadProducts() {
     };
     out.innerHTML = `
       <div class="live-strip" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr))">
-        <div class="live-tile neutral"><div class="lt-head">Productos anunciados</div><div class="big">${ps.length}</div></div>
-        <div class="live-tile neutral"><div class="lt-head">Conversiones</div><div class="big">${fmt(Math.round(totConv))}</div></div>
-        <div class="live-tile neutral"><div class="lt-head">Valor generado</div><div class="big">$${fmt(Math.round(totVal))} <small>${totCost ? (totVal / totCost).toFixed(1) + 'x ROAS' : ''}</small></div></div>
+        <div class="live-tile"><div class="lt-head">🛒 Con actividad · campaña 7d</div><div class="big">${activos.length} <small>de ${ps.length}</small></div></div>
+        <div class="live-tile neutral"><div class="lt-head">Ventas · campaña 7d</div><div class="big">${fmt(Math.round(totConv))}</div></div>
+        <div class="live-tile neutral"><div class="lt-head">Invertido → Valor · 7d</div><div class="big">$${fmt(Math.round(totVal))} <small>${totCost ? 'con $' + fmt(Math.round(totCost)) + ' · ' + (totVal / totCost).toFixed(1) + 'x REAL' : ''}</small></div></div>
         <div class="live-tile" style="border-left-color:${oos.length ? '#d97706' : 'var(--good)'}" title="${oos.map(s => s.title).join(' · ')}">
           <div class="lt-head">Sin stock en tienda</div><div class="big">${oos.length} <small>producto${oos.length === 1 ? '' : 's'}</small></div>
           ${oos.length ? `<div class="lesson-mini">${oos.slice(0, 3).map(s => esc(s.title)).join(' · ')}${oos.length > 3 ? ` · +${oos.length - 3} más` : ''}</div>` : ''}
@@ -1619,15 +1622,16 @@ async function loadProducts() {
         <div class="prod-card${p.agotado ? ' oos' : ''}">
           ${p.img ? `<img class="prod-img" src="${esc(p.img)}" alt="" loading="lazy">`
                   : '<div class="prod-img prod-noimg">🥒</div>'}
-          ${p.roas >= 20 ? '<span class="prod-star">⭐ estrella</span>' : ''}
+          ${p.camp7 && p.camp7.conv >= 2 ? '<span class="prod-star">⭐ ganador</span>' : ''}
           ${p.agotado ? '<span class="prod-oos">sin stock</span>' : ''}
           <div class="prod-body">
             <div class="prod-title">${esc(p.title.replace(/^Buy /, '').replace(/ Online.*$/, ''))}</div>
-            <div class="prod-roas" style="color:${p.roas >= 1 ? 'var(--good-text)' : 'var(--critical)'}">${p.roas != null ? p.roas + 'x' : '—'} <small>ROAS</small></div>
-            <div class="prod-stats">${p.conv} conv · $${p.cost.toFixed(0)} → $${fmt(Math.round(p.value))}</div>
+            ${p.camp7 && p.camp7.clicks ? `
+              <div class="prod-roas" style="color:${(p.camp7.roas || 0) >= 1 ? 'var(--good-text)' : 'var(--critical)'}">${p.camp7.roas != null ? p.camp7.roas + 'x' : '—'} <small>ROAS · 7d</small></div>
+              <div class="prod-stats">${p.camp7.conv > 0 ? `<b>${p.camp7.conv.toFixed(0)} venta${p.camp7.conv >= 2 ? 's' : ''}</b> · ` : ''}${p.camp7.clicks} clics · $${p.camp7.cost} → $${fmt(Math.round(p.camp7.value))}</div>`
+            : `<div class="prod-roas" style="color:var(--muted)">— <small>sin actividad · 7d</small></div>
+              <div class="prod-stats" style="color:var(--muted)">la campaña aún no le compró tráfico</div>`}
           </div>
-          ${p.camp7 && p.camp7.clicks ? `<div class="prod-camp7">🛒 campaña 7d: ${p.camp7.conv > 0 ? `<b>${p.camp7.conv.toFixed(0)} venta${p.camp7.conv >= 2 ? 's' : ''}</b> · $${p.camp7.cost} → $${p.camp7.value}${p.camp7.roas ? ` · ${p.camp7.roas}x` : ''}` : `${p.camp7.clicks} clics · $${p.camp7.cost} · sin venta aún`}</div>`
-                                       : '<div class="prod-camp7 off">🛒 campaña 7d: sin actividad</div>'}
           ${stockFoot(p)}
         </div>`).join('')}</div>`;
   } catch (e) { out.innerHTML = '<div class="plan-empty">Error cargando el catálogo.</div>'; }
