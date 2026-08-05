@@ -1167,6 +1167,33 @@ def products():
             out.append(m)
         out.sort(key=lambda x: -x["conv"])
         out = out[:100]
+
+        # métricas de la CAMPAÑA Shopping actual (7 días con hoy) por producto
+        camp7: dict = {}
+        try:
+            s7, e7 = _range_dates("7d")
+            q7 = f"""SELECT campaign.id, segments.product_title, metrics.clicks,
+                     metrics.cost_micros, metrics.conversions, metrics.conversions_value
+                     FROM shopping_performance_view
+                     WHERE campaign.advertising_channel_type = 'SHOPPING'
+                       AND campaign.status = 'ENABLED'
+                       AND segments.date BETWEEN '{s7.isoformat()}' AND '{e7.isoformat()}'"""
+            for b in ga.search_stream(customer_id="4888823590", query=q7):
+                for r in b.results:
+                    d = camp7.setdefault(r.segments.product_title,
+                                         dict(clicks=0, cost=0.0, conv=0.0, value=0.0))
+                    d["clicks"] += r.metrics.clicks
+                    d["cost"] += r.metrics.cost_micros / 1e6
+                    d["conv"] += r.metrics.conversions
+                    d["value"] += r.metrics.conversions_value
+            for d in camp7.values():
+                d["cost"] = round(d["cost"], 2)
+                d["conv"] = round(d["conv"], 1)
+                d["value"] = round(d["value"], 2)
+                d["roas"] = round(d["value"] / d["cost"], 1) if d["cost"] else None
+        except Exception as exc:
+            print(f"[products] camp7: {exc}", flush=True)
+
         cat = _shopify_catalog()
         imgs = dict(_product_images())
         imgs.update(cat["by_title"])          # el catálogo real pisa al sitemap
@@ -1183,6 +1210,7 @@ def products():
             own = {i["t"] for i in infos}
             m["variantes"] = [dict(v, own=v["t"] in own)
                               for p in parents[:1] for v in p["variants"]]
+            m["camp7"] = camp7.get(m["title"])  # ventas de la campaña Shopping viva
         issues = _merchant_issues()
         _products_cache[days_n] = {"at": now, "data": out, "issues": issues,
                                    "sin_stock": cat["sin_stock"]}

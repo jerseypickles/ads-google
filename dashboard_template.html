@@ -538,6 +538,12 @@
   .st-DRAFT { color: #8a6400; background: color-mix(in srgb, var(--warning) 18%, transparent); }
   .st-LIVE { color: var(--good-text); background: color-mix(in srgb, var(--good) 13%, transparent); }
   .st-PROPUESTA { color: var(--shop-ink); background: color-mix(in srgb, var(--shop) 14%, transparent); }
+  .prod-camp7 {
+    font-size: 10.5px; font-weight: 700; margin: 6px 12px 0; padding: 4px 9px;
+    border-radius: 7px; background: color-mix(in srgb, var(--shop) 11%, transparent);
+    color: var(--shop-ink); font-variant-numeric: tabular-nums;
+  }
+  .prod-camp7.off { background: color-mix(in srgb, var(--muted) 10%, transparent); color: var(--muted); font-weight: 600; }
   .kwchip.kw-paused { opacity: .45; }
   .kwchip.kw-paused b { text-decoration: line-through; }
   .row-del { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 2px 6px; }
@@ -1620,6 +1626,8 @@ async function loadProducts() {
             <div class="prod-roas" style="color:${p.roas >= 1 ? 'var(--good-text)' : 'var(--critical)'}">${p.roas != null ? p.roas + 'x' : '—'} <small>ROAS</small></div>
             <div class="prod-stats">${p.conv} conv · $${p.cost.toFixed(0)} → $${fmt(Math.round(p.value))}</div>
           </div>
+          ${p.camp7 && p.camp7.clicks ? `<div class="prod-camp7">🛒 campaña 7d: ${p.camp7.conv > 0 ? `<b>${p.camp7.conv.toFixed(0)} venta${p.camp7.conv >= 2 ? 's' : ''}</b> · $${p.camp7.cost} → $${p.camp7.value}${p.camp7.roas ? ` · ${p.camp7.roas}x` : ''}` : `${p.camp7.clicks} clics · $${p.camp7.cost} · sin venta aún`}</div>`
+                                       : '<div class="prod-camp7 off">🛒 campaña 7d: sin actividad</div>'}
           ${stockFoot(p)}
         </div>`).join('')}</div>`;
   } catch (e) { out.innerHTML = '<div class="plan-empty">Error cargando el catálogo.</div>'; }
