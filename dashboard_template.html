@@ -538,6 +538,8 @@
   .st-DRAFT { color: #8a6400; background: color-mix(in srgb, var(--warning) 18%, transparent); }
   .st-LIVE { color: var(--good-text); background: color-mix(in srgb, var(--good) 13%, transparent); }
   .st-PROPUESTA { color: var(--shop-ink); background: color-mix(in srgb, var(--shop) 14%, transparent); }
+  .kwchip.kw-paused { opacity: .45; }
+  .kwchip.kw-paused b { text-decoration: line-through; }
   .row-del { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 2px 6px; }
   .row-del:hover { color: var(--critical); }
   .row-view {
@@ -1286,7 +1288,7 @@ function renderManager() {
       const m = g.metrics || {};
       html += `<tr data-camp="${c.id}" data-group="${g.id}">
         <td><b>${esc(g.name)}</b></td><td>${esc(c.name).replace('JP | Search | ', '')}</td>
-        <td class="num">${c.type === 'SHOPPING' ? esc(g.products || '—') : (g.keywords || []).length}</td>
+        <td class="num">${c.type === 'SHOPPING' ? esc(g.products || '—') : (g.keywords || []).filter(k => !k.paused).length}</td>
         <td class="num">${mN(m.impr)}</td><td class="num">${mN(m.clicks)}</td><td class="num">${mPct(m.ctr)}</td>
         <td class="num">${m$(m.cost)}</td><td class="num">${mN(m.conv)}</td>
         <td class="num">${m$(m.value)}</td><td class="num">${mRoas(m)}</td>
@@ -1485,7 +1487,7 @@ function drawerGroup(cid, gid) {
     <div class="camp-role">${esc(c.name)}</div><h2>${esc(g.name)}</h2>
     <div class="d-sub">${(g.keywords || []).length} keywords · ${(g.headlines || []).length} titulares · ${(g.descriptions || []).length} descripciones</div>
     <p class="note" style="max-width:none">${esc(g.rationale || '')}</p>
-    <div class="d-section"><h4>Keywords</h4><div class="kwchips">${(g.keywords || []).map(k => `<span class="kwchip"><b>${esc(k.text)}</b><span class="mtag mtag-${k.match}">${k.match}</span></span>`).join('')}</div></div>
+    <div class="d-section"><h4>Keywords</h4><div class="kwchips">${(g.keywords || []).map(k => `<span class="kwchip${k.paused ? ' kw-paused' : ''}" title="${k.paused ? 'pausada por evidencia' : ''}"><b>${esc(k.text)}</b><span class="mtag mtag-${k.match}">${k.match}</span>${k.paused ? ' ⏸' : ''}</span>`).join('')}</div></div>
     <div class="d-section"><h4>Así se verá el anuncio</h4>${adPreview(g)}</div>
     <div class="d-section"><h4>Titulares · máx. 30 car.</h4><div class="hl-list">${(g.headlines || []).map(t => metered(t, 30)).join('')}</div></div>
     <div class="d-section"><h4>Descripciones · máx. 90 car.</h4><div class="hl-list">${(g.descriptions || []).map(d => metered(d, 90)).join('')}</div></div>

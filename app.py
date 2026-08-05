@@ -699,7 +699,31 @@ def _apply_and_log(a: dict, auto: bool = False) -> dict:
         modo = "auto-aplicada por el piloto Nivel 2" if auto else "aplicada"
         fable.learn(f"Acción {modo} ({a.get('tipo')}): {result['msg']}. Razón: {a.get('razon', '')[:150]}")
         _pulse_cache.update(at=0)  # refrescar pulso tras el cambio
+        _sync_store_after_action(a)  # que el gestor (y el frontend) reflejen el cambio
     return dict(ok=result["ok"], msg=msg, key=key)
+
+
+def _sync_store_after_action(a: dict) -> None:
+    """El gestor refleja lo que ya cambió en Google Ads (presupuesto, keywords pausadas)."""
+    try:
+        tipo = a.get("tipo")
+        if tipo not in ("ajustar_presupuesto", "pausar_keyword", "reactivar_keyword"):
+            return
+        store = _load_camps()
+        camp = next((c for c in store["campaigns"] if c["name"] == a.get("campana")), None)
+        if not camp:
+            return
+        if tipo == "ajustar_presupuesto":
+            camp["daily_budget_usd"] = float(a.get("valor"))
+        else:
+            obj = fable_actions._clean_kw(a.get("objetivo") or "").lower()
+            for g in camp.get("ad_groups", []):
+                for k in g.get("keywords", []):
+                    if (k.get("text") or "").lower() == obj:
+                        k["paused"] = (tipo == "pausar_keyword")
+        _save_camps(store)
+    except Exception as exc:
+        print(f"[store-sync] {exc}", flush=True)
 
 
 # --- piloto automático Nivel 2: lo seguro se ejecuta solo, verificado por código ---
