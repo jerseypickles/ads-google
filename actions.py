@@ -126,6 +126,25 @@ def _nueva_unidad(client, ad_group_rn: str, root_rn: str, item_id: str,
 
 def keyword_7d_stats(campana: str, text: str):
     """(coste, conversiones) de una keyword en los últimos 7 días, o None."""
+    if tipo == "optimizar_titulo_feed":
+        nuevo = str(valor or "").strip()
+        if not 10 <= len(nuevo) <= 150:
+            return dict(ok=False, msg=f"título de {len(nuevo)} caracteres (10-150)")
+        if re.search(r"(free shipping|env[ií]o gratis|% ?off|sale|discount|oferta)", nuevo, re.I):
+            return dict(ok=False, msg="texto promocional en el título — política de Google lo prohíbe")
+        if nuevo == nuevo.upper():
+            return dict(ok=False, msg="título todo en mayúsculas — política de Google")
+        m = re.search(r"shopify_[a-z]{2}_(\d+)_\d+", objetivo, re.I) or re.search(r"(\d{10,})", objetivo)
+        if not m:
+            return dict(ok=False, msg=f"objetivo debe ser item_id del feed o product_id: '{objetivo}'")
+        pid = int(m.group(1))
+        try:
+            import db
+            db.upsert("feed_overrides", {"pid": pid}, {"pid": pid, "title": nuevo})
+        except Exception as exc:
+            return dict(ok=False, msg=f"no se pudo guardar el override: {exc}")
+        return dict(ok=True, msg=f"título del producto {pid} → “{nuevo}” (el feed se re-sincroniza)")
+
     try:
         client = _client()
         ga = client.get_service("GoogleAdsService")
@@ -153,6 +172,25 @@ def apply_action(a: dict) -> dict:
     if tipo in ("pausar_keyword", "reactivar_keyword", "añadir_negativa", "crear_keyword"):
         objetivo = _clean_kw(objetivo)
     valor = a.get("valor")
+
+    if tipo == "optimizar_titulo_feed":
+        nuevo = str(valor or "").strip()
+        if not 10 <= len(nuevo) <= 150:
+            return dict(ok=False, msg=f"título de {len(nuevo)} caracteres (10-150)")
+        if re.search(r"(free shipping|env[ií]o gratis|% ?off|sale|discount|oferta)", nuevo, re.I):
+            return dict(ok=False, msg="texto promocional en el título — política de Google lo prohíbe")
+        if nuevo == nuevo.upper():
+            return dict(ok=False, msg="título todo en mayúsculas — política de Google")
+        m = re.search(r"shopify_[a-z]{2}_(\d+)_\d+", objetivo, re.I) or re.search(r"(\d{10,})", objetivo)
+        if not m:
+            return dict(ok=False, msg=f"objetivo debe ser item_id del feed o product_id: '{objetivo}'")
+        pid = int(m.group(1))
+        try:
+            import db
+            db.upsert("feed_overrides", {"pid": pid}, {"pid": pid, "title": nuevo})
+        except Exception as exc:
+            return dict(ok=False, msg=f"no se pudo guardar el override: {exc}")
+        return dict(ok=True, msg=f"título del producto {pid} → “{nuevo}” (el feed se re-sincroniza)")
 
     try:
         client = _client()

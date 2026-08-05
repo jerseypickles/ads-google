@@ -91,10 +91,22 @@ def _strip_html(html: str) -> str:
     return re.sub(r"\s+", " ", txt).strip()[:4900]
 
 
+def _title_overrides() -> dict:
+    """Títulos optimizados por Fable (SEO del feed) — viven en Mongo."""
+    try:
+        import db
+        return {int(d["pid"]): d["title"] for d in db.all_docs("feed_overrides", 500)
+                if d.get("pid") and d.get("title")}
+    except Exception:
+        return {}
+
+
 def build_offers(products: list) -> list:
+    overrides = _title_overrides()
     offers = []
     for p in products:
         pid = int(p["id"])
+        base_title = overrides.get(pid) or p["title"]
         imgs = {i["id"]: i["src"] for i in p.get("images", []) if i.get("src")}
         pimg = (p.get("image") or {}).get("src")
         desc = _strip_html(p.get("body_html")) or p["title"]
@@ -102,7 +114,7 @@ def build_offers(products: list) -> list:
         for v in p.get("variants", []):
             vid = int(v["id"])
             vt = v.get("title") or ""
-            title = p["title"] if vt in ("", "Default Title") else f"{p['title']} - {vt}"
+            title = base_title if vt in ("", "Default Title") else f"{base_title} - {vt}"
             qty = v.get("inventory_quantity")
             tracked = bool(v.get("inventory_management"))
             in_stock = (not tracked) or (qty or 0) > 0

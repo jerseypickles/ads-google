@@ -700,6 +700,8 @@ def _apply_and_log(a: dict, auto: bool = False) -> dict:
         fable.learn(f"Acción {modo} ({a.get('tipo')}): {result['msg']}. Razón: {a.get('razon', '')[:150]}")
         _pulse_cache.update(at=0)  # refrescar pulso tras el cambio
         _sync_store_after_action(a)  # que el gestor (y el frontend) reflejen el cambio
+        if a.get("tipo") == "optimizar_titulo_feed":
+            threading.Thread(target=lambda: _run("merchant_feed.py"), daemon=True).start()
     return dict(ok=result["ok"], msg=msg, key=key)
 
 

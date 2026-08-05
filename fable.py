@@ -833,7 +833,7 @@ Responde SOLO con JSON válido (sin markdown):
   "resumen": "2-3 frases con la foto general",
   "por_campana": [{{"name": "nombre exacto", "salud": "ok|atencion|critico", "notas": ["nota corta", "..."]}}],
   "recomendaciones": ["consejo general 1", "..."],
-  "acciones_propuestas": [{{"tipo": "pausar_keyword|reactivar_keyword|añadir_negativa|ajustar_presupuesto|ajustar_tope_cpc|crear_keyword|ajustar_puja_grupo|excluir_producto_shopping|mover_producto_grupo",
+  "acciones_propuestas": [{{"tipo": "pausar_keyword|reactivar_keyword|añadir_negativa|ajustar_presupuesto|ajustar_tope_cpc|crear_keyword|ajustar_puja_grupo|excluir_producto_shopping|mover_producto_grupo|optimizar_titulo_feed",
     "campana": "nombre EXACTO de la campaña", "objetivo": "keyword, término, nombre de grupo o item_id según el tipo",
     "valor": 0, "grupo": "solo para crear_keyword: nombre EXACTO del grupo de anuncios",
     "razon": "con los números que lo justifican", "urgencia": "alta|media|baja"}}],
@@ -924,6 +924,13 @@ reposición. La higiene por stock NO cuenta como optimización: permitida inclus
 PROHIBIDO en aprendizaje. Después: producto del grupo escoba con ≥2 conversiones merece subir a \
 un grupo con puja mayor; producto de Estrellas con ≥$15 y 0 conv baja al escoba (no se excluye \
 si aún tiene señales de funnel).
+- optimizar_titulo_feed (SHOPPING; objetivo=item_id del producto, valor=nuevo título ≤150 car.): \
+el título del feed ES la keyword de Shopping — tu palanca de SEO. Solo día 7+; máximo 3 por \
+revisión; solo productos con ≥20 clics de evidencia. El título nuevo DEBE conservar las \
+palabras que ya le traen ventas y añadir términos REALES de búsqueda del producto (atributo, \
+tamaño, 'refrigerated', 'fresh'); lo importante primero (primeros ~70 car. visibles). PROHIBIDO \
+texto promocional (free shipping, %, sale) — política de Google. Cambiar un título re-somete el \
+producto a revisión breve y cambia su matching: cirugía estructural, no cosmética.
 - Con 1-2 días de datos sé conservador: urgencia baja o nada. Máximo 5 acciones.
 Máximo 4 notas por campaña y 5 recomendaciones.{_lessons_block()}"""
 
