@@ -1200,8 +1200,28 @@ def products():
             if pid7 not in cubiertos and t:
                 prods[t] = dict(title=t, impr=0, clicks=0, cost=0.0, conv=0.0,
                                 value=0.0, vids=set(), pids={pid7})
-        out = []
+        # UNA card por producto físico: colapsar filas gemelas (títulos de otras eras)
+        por_pid: dict = {}
+        sueltos = []
         for m in prods.values():
+            pids = m.get("pids") or set()
+            if not pids:
+                sueltos.append(m)
+                continue
+            key = max(pids)  # el pid más nuevo representa al producto
+            t = por_pid.get(key)
+            if t is None:
+                por_pid[key] = m
+            else:
+                for f in ("impr", "clicks"):
+                    t[f] += m[f]
+                for f in ("cost", "conv", "value"):
+                    t[f] += m[f]
+                t["vids"] |= m.get("vids", set())
+                t["pids"] |= pids
+
+        out = []
+        for m in list(por_pid.values()) + sueltos:
             m["cost"] = round(m["cost"], 2)
             m["conv"] = round(m["conv"], 1)
             m["value"] = round(m["value"], 2)
@@ -1229,6 +1249,8 @@ def products():
         for m in out:
             infos = [cat["by_variant"][v] for v in m.pop("vids", ()) if v in cat["by_variant"]]
             parents = [cat["by_product"][p] for p in m.pop("pids", ()) if p in cat["by_product"]]
+            if parents:  # el nombre ACTUAL del producto, no el de eras pasadas
+                m["title"] = parents[0]["title"]
             m["img"] = (next((i["img"] for i in infos if i["img"]), None)
                         or _match_image(m["title"], imgs))
             qtys = [i["qty"] for i in infos if i["qty"] is not None]
