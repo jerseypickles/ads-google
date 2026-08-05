@@ -1163,7 +1163,8 @@ def products():
         camp7_titles: dict = {}
         try:
             s7, e7 = _range_dates("7d")
-            q7 = f"""SELECT campaign.id, segments.product_item_id, segments.product_title,
+            q7 = f"""SELECT campaign.id, campaign.status, campaign.advertising_channel_type,
+                     segments.product_item_id, segments.product_title,
                      metrics.clicks, metrics.cost_micros, metrics.conversions,
                      metrics.conversions_value
                      FROM shopping_performance_view
