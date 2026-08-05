@@ -1361,7 +1361,7 @@ document.addEventListener('click', async e => {
       ap.textContent = r.ok ? '✓ hecho' : '✕';
       if (!r.ok) alert('✕ ' + (r.msg || 'error'));
     } catch (err) { ap.disabled = false; ap.textContent = 'Aplicar'; return; }
-    loadManager();
+    if (location.hash === '#merchant') loadProducts(); else loadManager();
   }
 });
 function _genWatch(endpoint, label) {
@@ -1553,6 +1553,16 @@ async function loadProducts() {
   if (!IS_LOCAL) { out.innerHTML = '<div class="plan-empty">Disponible en la app local.</div>'; return; }
   try {
     const j = await (await fetch('/api/products?days=' + productsDays)).json();
+    let feedFixes = [];
+    try {
+      const [rev, log] = await Promise.all([
+        (await fetch('/api/campaigns/review')).json(),
+        (await fetch('/api/actions/log')).json()]);
+      const applied = (log.applied || []).filter(e => e.ok).map(e => JSON.stringify([e.action?.tipo, e.action?.objetivo, e.action?.valor]));
+      feedFixes = ((rev.review || {}).acciones_propuestas || [])
+        .filter(a => a.tipo === 'optimizar_titulo_feed')
+        .filter(a => !applied.includes(JSON.stringify([a.tipo, a.objetivo, a.valor])));
+    } catch (e) {}
     const ps = j.products || [];
     if (!ps.length) { out.innerHTML = '<div class="plan-empty">Sin datos de productos en este periodo.</div>'; return; }
     const totConv = ps.reduce((a, p) => a + p.conv, 0), totVal = ps.reduce((a, p) => a + p.value, 0);
@@ -1591,6 +1601,14 @@ async function loadProducts() {
           </div>
         </details>`;
       })() : ''}
+      ${feedFixes.length ? `<section class="card span-12" style="border-left:4px solid var(--shop);margin-bottom:16px">
+        <div class="card-head"><h2>🔧 SEO del feed — ${feedFixes.length} título${feedFixes.length > 1 ? 's' : ''} propuesto${feedFixes.length > 1 ? 's' : ''} por Fable</h2><span class="chip">el título ES la keyword de Shopping</span></div>
+        ${feedFixes.map(a => `<div class="d-list-row" style="cursor:default;align-items:flex-start;gap:10px">
+          <span style="flex:1;min-width:0"><b>“${esc(a.valor || '')}”</b>
+            <br><small style="color:var(--ink-2)">${esc(a.razon || '')}</small></span>
+          <button class="row-view" data-apply='${esc(JSON.stringify(a))}' style="flex:none">Aplicar</button></div>`).join('')}
+        <p class="plan-meta" style="margin-top:8px">Al aplicar, el feed se re-sincroniza a Google al instante; el producto pasa por una revisión breve.</p>
+      </section>` : ''}
       <div class="prod-grid">${ps.slice(0, 24).map(p => `
         <div class="prod-card${p.agotado ? ' oos' : ''}">
           ${p.img ? `<img class="prod-img" src="${esc(p.img)}" alt="" loading="lazy">`
