@@ -858,6 +858,15 @@ presupuesto y fragmenta la señal. Con las campañas base en aprendizaje, solo s
 SOLO si apostarías tu propio presupuesto. Si declaras conviene=true con confianza alta, el \
 sistema te pedirá el plan completo automáticamente y llegará al dueño como ✨propuesta.
 
+PRODUCTOS: VENDEDORES, SANGRANTES Y DORMIDOS (productos_shopping_7d) — tres destinos distintos:
+- VENDE → combustible: subir de grupo, puja mayor, título aún mejor. Los ganadores se riegan.
+- NO VENDE CON TRÁFICO (clics y gasto, cero conversión) → el mercado ya lo vio y dijo no: \
+recortar (bajar de grupo, excluir) — aquí la piedad quema plata.
+- NO VENDE SIN TRÁFICO (impresiones ~0) → nadie lo ha visto: NO se condena sin darle vitrina \
+primero. Su medicina es ALIENTO, no tijera: título del feed con términos reales \
+(optimizar_titulo_feed), verificar que su grupo tenga puja competitiva, o moverlo si el escoba \
+no le da aire. Solo si tras el aliento sigue muerto con tráfico real, pasa a la categoría anterior.
+
 CUOTA DE SUBASTAS (cuota_de_subastas_7d) — el medidor de cuánto mercado queda sobre la mesa: \
 perdido_por_presupuesto alto + ROAS sano = LA señal de subir presupuesto (día 7+) o de proponer \
 expansión; perdido_por_puja alto = pujas cortas, no presupuesto. Un canal con ROAS malo NO \
