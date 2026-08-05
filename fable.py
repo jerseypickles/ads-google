@@ -903,8 +903,11 @@ negativas_activas_por_campana (compara texto y campaña).
 acciones_ya_aplicadas lleva fecha. El gasto ANTERIOR a la aplicación de una negativa NO es \
 reincidencia — solo es reincidencia si el término gasta DESPUÉS del ts de la acción aplicada. \
 No acuses de "sin aplicar" lo que consta en acciones_ya_aplicadas o en negativas activas.
-- ajustar_presupuesto (valor=USD/día): PROHIBIDO en aprendizaje. Después: subir SOLO con CPA \
-validado <$8 y ≥3 compras; bajar si gasto completo sin señal de funnel ≥3 días.
+- ajustar_presupuesto (valor=USD/día): PROHIBIDO en aprendizaje. Después: subir SOLO con ROAS \
+sano y cuota perdida por presupuesto; bajar si gasto completo sin retorno ≥3 días. TAMAÑO DEL \
+PASO según estrategia de puja (el ejecutor lo bloquea si te pasas): campañas MANUAL_CPC \
+(shopping) hasta +100% por paso — no hay algoritmo que resetear; Maximizar clics ±30%; cuando \
+exista tROAS, ±20% máximo y NUNCA junto a un cambio de objetivo. Entre pasos, 3-4 días de lectura.
 - ajustar_tope_cpc (valor=USD): PROHIBIDO en aprendizaje. Después: bajar si el CPC medio lleva \
 ≥3 días pegado al ≥90% del tope sin compras.
 - crear_keyword (objetivo=texto, valor=EXACT|PHRASE, grupo=nombre EXACTO del grupo): solo con \

@@ -203,6 +203,24 @@ def apply_action(a: dict) -> dict:
             v = float(valor)
             if not 5 <= v <= 300:
                 return dict(ok=False, msg=f"presupuesto ${v} fuera de límites (5-300)")
+            # protección del learning: el tamaño del paso depende de la estrategia de puja
+            q = f"""SELECT campaign.bidding_strategy_type, campaign_budget.amount_micros
+                    FROM campaign WHERE campaign.id = {camp.id}"""
+            actual, estrategia = None, ""
+            for b in ga.search_stream(customer_id=CUSTOMER_ID, query=q):
+                for r in b.results:
+                    actual = r.campaign_budget.amount_micros / 1e6
+                    estrategia = r.campaign.bidding_strategy_type.name
+            if actual:
+                paso = abs(v - actual) / actual
+                # manual = sin algoritmo que resetear (tope 100%); smart bidding = ±30%
+                tope = 1.00 if estrategia == "MANUAL_CPC" else 0.30
+                if paso > tope:
+                    seguro = round(actual * (1 + tope) if v > actual else actual * (1 - tope), 2)
+                    return dict(ok=False, msg=(
+                        f"BLOQUEADO: cambio de ${actual:.0f}→${v:.0f} es {paso*100:.0f}% y la "
+                        f"estrategia {estrategia} tolera ±{tope*100:.0f}% por paso sin perder "
+                        f"learning — máximo seguro ahora: ${seguro}"))
             svc = client.get_service("CampaignBudgetService")
             op = client.get_type("CampaignBudgetOperation")
             op.update.resource_name = camp.campaign_budget
