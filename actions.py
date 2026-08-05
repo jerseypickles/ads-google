@@ -215,7 +215,7 @@ def apply_action(a: dict) -> dict:
                 paso = abs(v - actual) / actual
                 # manual = sin algoritmo que resetear (tope 100%); smart bidding = ±30%
                 tope = 1.00 if estrategia == "MANUAL_CPC" else 0.30
-                if paso > tope:
+                if paso > tope + 0.005:  # margen para redondeos
                     seguro = round(actual * (1 + tope) if v > actual else actual * (1 - tope), 2)
                     return dict(ok=False, msg=(
                         f"BLOQUEADO: cambio de ${actual:.0f}→${v:.0f} es {paso*100:.0f}% y la "
