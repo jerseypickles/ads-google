@@ -724,6 +724,22 @@ def _apply_to_draft(a: dict, draft: dict) -> dict:
         camp["daily_budget_usd"] = v
         _save_camps(store)
         return dict(ok=True, msg=f"borrador '{camp['name']}': presupuesto ${antes} → ${v}/día (aún sin lanzar)")
+    if tipo in ("pausar_keyword", "quitar_keyword_borrador"):
+        obj = fable_actions._clean_kw(a.get("objetivo") or "").lower()
+        quitadas = 0
+        for g in list(camp.get("ad_groups", [])):
+            antes = len(g.get("keywords", []))
+            g["keywords"] = [k for k in g.get("keywords", [])
+                             if (k.get("text") or "").lower() != obj]
+            quitadas += antes - len(g["keywords"])
+        # un grupo sin keywords no puede subirse a Google: se elimina del plan
+        vacios = [g["name"] for g in camp.get("ad_groups", []) if not g.get("keywords")]
+        camp["ad_groups"] = [g for g in camp.get("ad_groups", []) if g.get("keywords")]
+        if not quitadas:
+            return dict(ok=True, msg=f"'{obj}' no estaba en el borrador")
+        _save_camps(store)
+        extra = f" (grupo{'s' if len(vacios) > 1 else ''} vacío{'s' if len(vacios) > 1 else ''} eliminado{'s' if len(vacios) > 1 else ''}: {', '.join(vacios)})" if vacios else ""
+        return dict(ok=True, msg=f"borrador '{camp['name']}': quitada '{obj}'{extra}")
     if tipo == "ajustar_puja_grupo":
         v = float(a.get("valor") or 0)
         if not 0.20 <= v <= 2.00:
