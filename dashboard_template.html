@@ -1271,7 +1271,10 @@ function renderManager() {
       html += `<tr data-camp="${c.id}">
         <td><button class="sw${c.enabled ? ' on' : ''}" data-id="${c.id}" title="Se lanzará activa o en pausa"></button></td>
         <td><b>${esc(c.name)}</b> <span class="mtag ${c.type === 'SHOPPING' ? 'mtag-SHOP' : 'mtag-PHRASE'}" style="font-size:9.5px">${c.type === 'SHOPPING' ? '🛒 SHOPPING' : 'SEARCH'}</span><br><small style="color:var(--muted)">${c.type === 'SHOPPING' ? 'productos del Merchant' : esc(c.match_role || '')} · ${(c.ad_groups || []).length} grupos</small></td>
-        <td><span class="st-chip st-${c.status}">${c.status === 'PROPUESTA' ? '✨ Propuesta de Fable' : c.status === 'DRAFT' ? 'Borrador' : 'En Google Ads'}</span>${(() => {
+        <td><span class="st-chip ${c.status === 'LIVE' && c.paused_at ? 'st-DRAFT' : 'st-' + c.status}">${
+          c.status === 'PROPUESTA' ? '✨ Propuesta de Fable'
+          : c.status === 'DRAFT' ? 'Borrador'
+          : c.paused_at ? '⏸ Pausada en Google Ads' : 'En Google Ads'}</span>${(() => {
           if (c.status !== 'LIVE' || !c.pushed_at) return '';
           const days = Math.floor((Date.now() - new Date(c.pushed_at.replace(' ', 'T'))) / 86400000);
           return days < 7 ? `<br><small style="color:var(--muted)">🎓 aprendizaje · día ${days + 1} de 7</small>` : '';
