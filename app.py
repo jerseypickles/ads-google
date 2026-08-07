@@ -535,6 +535,7 @@ def _run_review() -> None:
         review = fable.generate_campaign_review()
         _review_state["error"] = None
         _autopilot(review)      # Nivel 2: lo seguro se ejecuta solo (verificado)
+        _autoscale()            # Nivel 3: presupuestos y pujas, sin techo pero con pruebas
         _maybe_expand(review)   # y el crecimiento lo decide su análisis, no fechas
     except Exception as exc:
         _review_state["error"] = str(exc)
@@ -664,10 +665,12 @@ def _load_actions_log() -> list:
 
 
 def _action_key(a: dict) -> str:
-    base = json.dumps(
-        {k: a.get(k) for k in ("tipo", "campana", "objetivo", "valor")},
-        sort_keys=True, ensure_ascii=False,
-    )
+    campos = {k: a.get(k) for k in ("tipo", "campana", "objetivo", "valor")}
+    # el escalado automático puede repetir un valor con semanas de diferencia
+    # (bajar y volver a subir): la fecha evita que se lea como "ya aplicada"
+    if a.get("auto_scale_day"):
+        campos["auto_scale_day"] = a["auto_scale_day"]
+    base = json.dumps(campos, sort_keys=True, ensure_ascii=False)
     return hashlib.md5(base.encode()).hexdigest()[:12]
 
 
@@ -752,6 +755,135 @@ def _auto_safe(a: dict) -> bool:
         cost, conv = stats
         return cost >= 25 and conv == 0  # sangría verificada con números reales
     return False
+
+
+# --- Nivel 3: Fable escala y recorta solo. Sin techo de gasto: el ROAS es el techo,
+#     pero CADA escalón se gana con datos frescos y hay cortacircuitos duros. ---
+SCALE_COOLDOWN = 48 * 3600     # un paso por campaña cada 48h, nunca en cadena
+SCALE_MIN_ROAS = 3.0           # subir exige rentabilidad probada
+SCALE_LOST_IS = 0.20           # ...y demanda real quedando fuera
+CUT_MAX_ROAS = 1.0             # recortar si pierde dinero
+CUT_MIN_SPEND = 50.0           # ...con evidencia suficiente
+
+
+def _last_touch(campana: str, tipos: tuple, objetivo: str = None) -> float:
+    """Última vez que se movió presupuesto/puja de esa campaña (log completo)."""
+    best = 0.0
+    for e in _load_actions_log():
+        a = e.get("action") or {}
+        if not e.get("ok") or a.get("tipo") not in tipos or a.get("campana") != campana:
+            continue
+        if objetivo is not None and a.get("objetivo") != objetivo:
+            continue
+        try:
+            best = max(best, time.mktime(time.strptime(str(e.get("ts", ""))[:16], "%Y-%m-%d %H:%M")))
+        except Exception:
+            pass
+    return best
+
+
+def _autoscale() -> None:
+    """Escalado autónomo: presupuestos y pujas, verificado contra Google Ads."""
+    try:
+        from datetime import timedelta
+
+        from google.ads.googleads.client import GoogleAdsClient
+
+        client = GoogleAdsClient.load_from_storage(str(BASE / "google-ads.yaml"))
+        ga = client.get_service("GoogleAdsService")
+        cid = "4888823590"
+        hoy = _account_today()
+        d3 = (hoy - timedelta(days=2)).isoformat()
+        aprendiendo = set(fable._learning_campaigns())
+        ahora = time.time()
+
+        q = f"""SELECT campaign.name, campaign.status, campaign.bidding_strategy_type,
+                campaign_budget.amount_micros, metrics.cost_micros, metrics.conversions,
+                metrics.conversions_value, metrics.search_budget_lost_impression_share,
+                metrics.search_rank_lost_impression_share
+                FROM campaign WHERE campaign.status = 'ENABLED'
+                  AND segments.date BETWEEN '{d3}' AND '{hoy.isoformat()}'"""
+        camps = []
+        for b in ga.search_stream(customer_id=cid, query=q):
+            for r in b.results:
+                m = r.metrics
+                camps.append(dict(
+                    name=r.campaign.name, estrategia=r.campaign.bidding_strategy_type.name,
+                    budget=r.campaign_budget.amount_micros / 1e6,
+                    cost=m.cost_micros / 1e6, conv=m.conversions, value=m.conversions_value,
+                    perdido_presup=m.search_budget_lost_impression_share,
+                    perdido_rank=m.search_rank_lost_impression_share))
+
+        # CORTACIRCUITO: si hay gasto real y CERO conversiones en toda la cuenta,
+        # el tracking puede estar roto — no se escala a ciegas.
+        gasto_total = sum(c["cost"] for c in camps)
+        conv_total = sum(c["conv"] for c in camps)
+        if gasto_total > 50 and conv_total == 0:
+            print("[autoscale] CORTACIRCUITO: gasto sin ninguna conversión — no se escala", flush=True)
+            return
+
+        for c in camps:
+            if c["name"] in aprendiendo:
+                continue
+            if ahora - _last_touch(c["name"], ("ajustar_presupuesto",)) < SCALE_COOLDOWN:
+                continue
+            roas = c["value"] / c["cost"] if c["cost"] else 0
+            manual = c["estrategia"] == "MANUAL_CPC"
+            nuevo = razon = None
+
+            if roas >= SCALE_MIN_ROAS and c["perdido_presup"] > SCALE_LOST_IS and c["cost"] > 10:
+                paso = 0.50 if manual else 0.30      # el guardián permite más; se va sobrio
+                nuevo = round(c["budget"] * (1 + paso), 2)
+                razon = (f"ROAS {roas:.1f}x en 3 días con {c['perdido_presup']*100:.0f}% de subastas "
+                         f"perdidas por presupuesto — el presupuesto es el cuello, no la demanda.")
+            elif roas < CUT_MAX_ROAS and c["cost"] >= CUT_MIN_SPEND:
+                nuevo = round(max(5.0, c["budget"] * 0.70), 2)
+                razon = (f"ROAS {roas:.1f}x con ${c['cost']:.0f} gastados en 3 días — recorte "
+                         f"defensivo del 30% mientras se corrige.")
+
+            if nuevo and abs(nuevo - c["budget"]) >= 1:
+                a = dict(tipo="ajustar_presupuesto", campana=c["name"], valor=nuevo,
+                         razon=f"🤖 Escalado automático (Nivel 3): {razon}",
+                         auto_scale_day=hoy.isoformat())
+                r = _apply_and_log(a, auto=True)
+                print(f"[autoscale] {c['name'][:35]}: ${c['budget']}→${nuevo} · {r['msg'][:60]}", flush=True)
+
+        # PUJAS de Shopping: atacan lo que se pierde por rank, no por presupuesto
+        for c in camps:
+            if c["name"] in aprendiendo or c["estrategia"] != "MANUAL_CPC":
+                continue
+            if c["perdido_rank"] <= SCALE_LOST_IS:
+                continue
+            qg = f"""SELECT ad_group.name, ad_group.cpc_bid_micros, metrics.cost_micros,
+                     metrics.conversions, metrics.conversions_value FROM ad_group
+                     WHERE campaign.name = '{c['name']}' AND ad_group.status = 'ENABLED'
+                       AND segments.date BETWEEN '{d3}' AND '{hoy.isoformat()}'"""
+            for b in ga.search_stream(customer_id=cid, query=qg):
+                for r in b.results:
+                    g, m = r.ad_group, r.metrics
+                    if ahora - _last_touch(c["name"], ("ajustar_puja_grupo",), g.name) < SCALE_COOLDOWN:
+                        continue
+                    cost = m.cost_micros / 1e6
+                    puja = g.cpc_bid_micros / 1e6
+                    groas = m.conversions_value / cost if cost else 0
+                    if groas >= SCALE_MIN_ROAS and cost > 5:
+                        nueva = round(min(2.00, puja * 1.25), 2)
+                        motivo = (f"grupo con ROAS {groas:.1f}x y la campaña pierde "
+                                  f"{c['perdido_rank']*100:.0f}% de subastas por puja")
+                    elif cost >= 25 and m.conversions == 0:
+                        nueva = round(max(0.20, puja * 0.75), 2)
+                        motivo = f"grupo con ${cost:.0f} y 0 conversiones en 3 días"
+                    else:
+                        continue
+                    if abs(nueva - puja) < 0.05:
+                        continue
+                    a = dict(tipo="ajustar_puja_grupo", campana=c["name"], objetivo=g.name,
+                             valor=nueva, razon=f"🤖 Escalado automático (Nivel 3): {motivo}",
+                             auto_scale_day=hoy.isoformat())
+                    res = _apply_and_log(a, auto=True)
+                    print(f"[autoscale] puja {g.name[:28]}: ${puja}→${nueva} · {res['msg'][:50]}", flush=True)
+    except Exception as exc:
+        print(f"[autoscale] error: {exc}", flush=True)
 
 
 def _autopilot(review: dict) -> None:
