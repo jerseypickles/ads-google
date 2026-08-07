@@ -915,7 +915,11 @@ algoritmo y esperan al día 7. Todo lo demás que observes, anótalo para el paq
 REGLAS PARA acciones_propuestas (solo con EVIDENCIA en los datos; sin evidencia → lista vacía):
 - pausar_keyword: gastó >$15 con 0 conversiones Y (CTR<1.5% o cero señales de funnel). \
 En aprendizaje el umbral sube a >$25 y cero funnel.
-- añadir_negativa: término de búsqueda irrelevante/DIY con gasto o >10 impresiones. NUNCA una \
+- añadir_negativa (campo opcional "match": BROAD|PHRASE|EXACT, por defecto BROAD): término \
+irrelevante/DIY con gasto o >10 impresiones. REGLA DE FLUJO: si el término coincide con una \
+keyword propia de OTRA campaña (cross-negative para dirigir tráfico entre EXACT y PHRASE), la \
+negativa DEBE ser match=EXACT — una BROAD bloquearía toda la familia de variantes y mataría \
+tráfico que convierte. El ejecutor la degrada solo si detecta canibalización, pero decláralo tú. NUNCA una \
 negativa que contenga una keyword activa propia. NUNCA propongas una negativa que ya figure en \
 negativas_activas_por_campana (compara texto y campaña).
 - REGLA DE NO-REINCIDENCIA: terminos_busqueda_ayer_y_hoy cubre SOLO ayer y hoy; \

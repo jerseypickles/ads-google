@@ -218,9 +218,27 @@ def apply_action(a: dict) -> dict:
 
         if tipo == "añadir_negativa":
             neg = objetivo.lower()
+            match = str(a.get("match") or "BROAD").upper()
+            if match not in ("BROAD", "PHRASE", "EXACT"):
+                match = "BROAD"
             for kw in _active_keywords(ga, camp.id):
                 if neg == kw or neg in kw:
                     return dict(ok=False, msg=f"BLOQUEADO: '{objetivo}' chocaría con la keyword activa '{kw}'")
+            # una BROAD que contiene una keyword de OTRA campaña propia mata su tráfico:
+            # el flujo entre campañas se hace con negativas EXACT (lección del proyecto)
+            if match == "BROAD":
+                q = """SELECT campaign.name, ad_group_criterion.keyword.text
+                       FROM ad_group_criterion
+                       WHERE ad_group_criterion.type = 'KEYWORD'
+                         AND ad_group_criterion.negative = FALSE
+                         AND ad_group_criterion.status = 'ENABLED'
+                         AND campaign.status = 'ENABLED'"""
+                for b in ga.search_stream(customer_id=CUSTOMER_ID, query=q):
+                    for r in b.results:
+                        propia = r.ad_group_criterion.keyword.text.lower()
+                        if propia and (neg in propia or propia in neg):
+                            match = "EXACT"   # se degrada sola: bloquea el término, no la familia
+                            break
             q = f"""SELECT campaign_criterion.keyword.text FROM campaign_criterion
                     WHERE campaign.id = {camp.id} AND campaign_criterion.negative = TRUE
                       AND campaign_criterion.type = 'KEYWORD'"""
@@ -233,9 +251,9 @@ def apply_action(a: dict) -> dict:
             op.create.campaign = camp.resource_name
             op.create.negative = True
             op.create.keyword.text = objetivo
-            op.create.keyword.match_type = client.enums.KeywordMatchTypeEnum.BROAD
+            op.create.keyword.match_type = getattr(client.enums.KeywordMatchTypeEnum, match)
             svc.mutate_campaign_criteria(customer_id=CUSTOMER_ID, operations=[op])
-            return dict(ok=True, msg=f"negativa '{objetivo}' añadida (BROAD) a {campana}")
+            return dict(ok=True, msg=f"negativa '{objetivo}' añadida ({match}) a {campana}")
 
         if tipo == "ajustar_presupuesto":
             v = float(valor)
