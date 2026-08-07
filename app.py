@@ -691,7 +691,10 @@ def _apply_and_log(a: dict, auto: bool = False) -> dict:
     if any(e["key"] == key and e.get("ok") for e in log) \
             or mongo.get_doc("actions", {"key": key, "ok": True}):
         return dict(ok=True, msg="ya estaba aplicada", key=key)
-    result = fable_actions.apply_action(a)
+    # una PROPUESTA aún no existe en Google: se edita el borrador, no la cuenta
+    draft = next((c for c in _load_camps()["campaigns"]
+                  if c.get("name") == a.get("campana") and c.get("status") == "PROPUESTA"), None)
+    result = _apply_to_draft(a, draft) if draft else fable_actions.apply_action(a)
     msg = ("🤖 auto · " if auto else "") + result["msg"]
     entry = dict(key=key, action=a, ok=result["ok"], msg=msg,
                  ts=time.strftime("%Y-%m-%d %H:%M"), auto=auto)
@@ -706,6 +709,31 @@ def _apply_and_log(a: dict, auto: bool = False) -> dict:
         if a.get("tipo") == "optimizar_titulo_feed":
             threading.Thread(target=lambda: _run("merchant_feed.py"), daemon=True).start()
     return dict(ok=result["ok"], msg=msg, key=key)
+
+
+def _apply_to_draft(a: dict, draft: dict) -> dict:
+    """Ajustes sobre una campaña PROPUESTA: se corrige el plan antes de lanzarla."""
+    tipo = a.get("tipo")
+    store = _load_camps()
+    camp = next(c for c in store["campaigns"] if c["id"] == draft["id"])
+    if tipo == "ajustar_presupuesto":
+        v = float(a.get("valor") or 0)
+        if not 5 <= v <= 300:
+            return dict(ok=False, msg=f"presupuesto ${v} fuera de límites (5-300)")
+        antes = camp.get("daily_budget_usd")
+        camp["daily_budget_usd"] = v
+        _save_camps(store)
+        return dict(ok=True, msg=f"borrador '{camp['name']}': presupuesto ${antes} → ${v}/día (aún sin lanzar)")
+    if tipo == "ajustar_puja_grupo":
+        v = float(a.get("valor") or 0)
+        if not 0.20 <= v <= 2.00:
+            return dict(ok=False, msg=f"puja ${v} fuera de límites (0.20-2.00)")
+        for g in camp.get("product_groups", []) + camp.get("ad_groups", []):
+            if g.get("name") == a.get("objetivo"):
+                g["cpc_bid_usd"] = v
+        _save_camps(store)
+        return dict(ok=True, msg=f"borrador '{camp['name']}': puja de '{a.get('objetivo')}' → ${v}")
+    return dict(ok=False, msg=f"'{tipo}' no se puede aplicar a un borrador — lánzala primero")
 
 
 def _sync_store_after_action(a: dict) -> None:
