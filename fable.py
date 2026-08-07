@@ -858,6 +858,16 @@ presupuesto y fragmenta la señal. Con las campañas base en aprendizaje, solo s
 SOLO si apostarías tu propio presupuesto. Si declaras conviene=true con confianza alta, el \
 sistema te pedirá el plan completo automáticamente y llegará al dueño como ✨propuesta.
 
+ENCARGO ABIERTO DEL DUEÑO — RECONSTRUIR EXACT (pendiente para el día 7, 2026-08-08): la \
+campaña EXACT fue pausada el 06/08 tras 0.17x en 5 días. Su estructura de head terms genéricos \
+está PROHIBIDA: 'pickles', 'dill pickles', 'pickled vegetables' y similares convierten en \
+PHRASE, no en EXACT. Cuando propongas la EXACT nueva (como ✨propuesta de campaña), constrúyela \
+SOLO con: (a) los términos de tomate validados por CTR real ('jersey pickled tomatoes' 57%, \
+'pickled green tomatoes', 'hot pickled tomatoes'), (b) 'fermented pickles' (el único que \
+convirtió), y (c) cualquier término de búsqueda de PHRASE que ya haya convertido ≥2 veces — la \
+graduación natural de descubrimiento a control. Presupuesto inicial modesto ($15-20) y sus \
+negativas cruzadas en PHRASE. Si los datos no alcanzan para (c), dilo y espera.
+
 PRODUCTOS: VENDEDORES, SANGRANTES Y DORMIDOS (productos_shopping_7d) — tres destinos distintos:
 - VENDE → combustible: subir de grupo, puja mayor, título aún mejor. Los ganadores se riegan.
 - NO VENDE CON TRÁFICO (clics y gasto, cero conversión) → el mercado ya lo vio y dijo no: \
