@@ -538,6 +538,10 @@
   .st-DRAFT { color: #8a6400; background: color-mix(in srgb, var(--warning) 18%, transparent); }
   .st-LIVE { color: var(--good-text); background: color-mix(in srgb, var(--good) 13%, transparent); }
   .st-PROPUESTA { color: var(--shop-ink); background: color-mix(in srgb, var(--shop) 14%, transparent); }
+  .mgr-total td {
+    border-top: 2px solid var(--ink); background: color-mix(in srgb, var(--accent) 7%, var(--card));
+    font-variant-numeric: tabular-nums; padding-top: 10px; padding-bottom: 10px;
+  }
   .prod-camp7 {
     font-size: 10.5px; font-weight: 700; margin: 6px 12px 0; padding: 4px 9px;
     border-radius: 7px; background: color-mix(in srgb, var(--shop) 11%, transparent);
@@ -1324,9 +1328,35 @@ function renderManager() {
         <td><button class="row-view" data-vt="ad" data-vc="${c.id}" data-vg="${g.id}">Ver</button></td></tr>`;
     }
   }
-  html += '</tbody></table></div></section>';
+  // ---- TOTALES del periodo: lo que de verdad importa saber de un vistazo ----
+  const filas = MGR.level === 'camp' ? cs.map(c => c.metrics || {})
+              : MGR.level === 'group' ? fGroups.map(x => x.g.metrics || {})
+              : fAds.map(x => x.g.ad_metrics || {});
+  const T = filas.reduce((a, m) => ({
+    impr: a.impr + (m.impr || 0), clicks: a.clicks + (m.clicks || 0),
+    cost: a.cost + (m.cost || 0), conv: a.conv + (m.conv || 0), value: a.value + (m.value || 0),
+  }), { impr: 0, clicks: 0, cost: 0, conv: 0, value: 0 });
+  T.ctr = T.impr ? Math.round(T.clicks / T.impr * 1000) / 10 : null;
+  T.roas = T.cost ? T.value / T.cost : null;
+  T.cpa = T.conv ? T.cost / T.conv : null;
+  const presu = cs.filter(c => c.status === 'LIVE' && c.enabled !== false)
+                  .reduce((a, c) => a + (Number(c.daily_budget_usd) || 0), 0);
+  const roasBig = T.roas == null ? '—'
+    : `<b style="font-size:15px;color:${T.roas >= 1 ? 'var(--good-text)' : 'var(--critical)'}">${T.roas.toFixed(2)}x</b>`;
+  const pre = MGR.level === 'camp'
+    ? `<td></td><td><b>TOTAL · ${cs.length} campañas</b></td><td></td><td></td><td class="num"><b>$${presu.toFixed(0)}</b></td>`
+    : MGR.level === 'group'
+      ? `<td><b>TOTAL · ${fGroups.length} grupos</b></td><td></td><td></td>`
+      : `<td><b>TOTAL · ${fAds.length} anuncios</b></td><td></td>`;
+  html += `</tbody><tfoot><tr class="mgr-total">${pre}
+    <td class="num">${mN(T.impr)}</td><td class="num">${mN(T.clicks)}</td><td class="num">${mPct(T.ctr)}</td>
+    <td class="num"><b>${m$(T.cost)}</b></td><td class="num"><b>${mN(T.conv)}</b></td>
+    <td class="num"><b>${m$(T.value)}</b></td><td class="num">${roasBig}</td>
+    ${MGR.level === 'camp' ? `<td class="num">${m$(T.cpa)}</td>` : ''}<td></td></tr></tfoot>`;
+  html += '</table></div></section>';
   const RANGE_LBL = { today: 'hoy', yesterday: 'ayer', '7d': 'últimos 7 días', '14d': 'últimos 14 días', '30d': 'últimos 30 días' };
-  html += `<p class="plan-meta">Métricas del periodo: <b>${RANGE_LBL[MGR.range] || MGR.range}</b> · Act. = con el switch <b>encendido</b> la campaña se lanza ACTIVA al subirla; apagado, sube en pausa.</p>`;
+  html += `<p class="plan-meta">Métricas del periodo: <b>${RANGE_LBL[MGR.range] || MGR.range}</b>${
+    T.roas != null ? ` · <b>ROAS de la cuenta: ${T.roas.toFixed(2)}x</b> (${m$(T.cost)} invertidos → ${m$(T.value)} generados)` : ''} · Act. = con el switch <b>encendido</b> la campaña se lanza ACTIVA al subirla; apagado, sube en pausa.</p>`;
   $('#mgr-out').innerHTML = html;
 }
 
