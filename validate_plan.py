@@ -61,7 +61,22 @@ def check(store: dict) -> list[tuple[str, str, str]]:
             issues.append(("ERROR", name, "presupuesto diario inválido"))
         role = (c.get("match_role") or "").upper()
         if role.startswith("PHRASE") and not c.get("cross_negatives"):
-            issues.append(("ERROR", name, "campaña PHRASE sin negativas cruzadas (flujo roto)"))
+            # solo es "flujo roto" si existe una EXACT que comparta keywords con ella;
+            # una PHRASE de mercado nuevo no tiene hermana a la que proteger
+            mias = {k["text"].lower() for g in c.get("ad_groups", [])
+                    for k in g.get("keywords", [])}
+            exactas = set()
+            for otra in store.get("campaigns", []):
+                if otra is c or not (otra.get("match_role") or "").upper().startswith("EXACT"):
+                    continue
+                if otra.get("status") not in (None, "LIVE", "DRAFT", "PROPUESTA"):
+                    continue
+                exactas |= {k["text"].lower() for g in otra.get("ad_groups", [])
+                            for k in g.get("keywords", [])}
+            solapan = mias & exactas
+            if solapan:
+                issues.append(("ERROR", name,
+                               f"campaña PHRASE sin negativas cruzadas y comparte keywords con una EXACT: {sorted(solapan)[:3]}"))
 
         for g in c.get("ad_groups", []):
             gname = f"{name} › {g['name']}"
