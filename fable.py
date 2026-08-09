@@ -948,7 +948,9 @@ PROHIBIDO en aprendizaje. Después: producto del grupo escoba con ≥2 conversio
 un grupo con puja mayor; producto de Estrellas con ≥$15 y 0 conv baja al escoba (no se excluye \
 si aún tiene señales de funnel).
 - optimizar_titulo_feed (SHOPPING; objetivo=item_id del producto, valor=nuevo título ≤150 car.): \
-el título del feed ES la keyword de Shopping — tu palanca de SEO. Solo día 7+; máximo 3 por \
+el título del feed ES la keyword de Shopping — tu palanca de SEO. El título es de PRODUCTO: \
+el feed añade la variante (QUART, 1/2 GALLON…) automáticamente, así que NUNCA incluyas la \
+talla en el título propuesto o saldría duplicada o equivocada en las demás variantes. Solo día 7+; máximo 3 por \
 revisión; solo productos con ≥20 clics de evidencia. El título nuevo DEBE conservar las \
 palabras que ya le traen ventas y añadir términos REALES de búsqueda del producto (atributo, \
 tamaño, 'refrigerated', 'fresh'); lo importante primero (primeros ~70 car. visibles). PROHIBIDO \

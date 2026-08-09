@@ -138,6 +138,20 @@ def keyword_7d_stats(campana: str, text: str):
         if not m:
             return dict(ok=False, msg=f"objetivo debe ser item_id del feed o product_id: '{objetivo}'")
         pid = int(m.group(1))
+        # el título es de PRODUCTO: el feed añade la variante solo. Un sufijo de
+        # talla en el override saldría duplicado (o con la talla equivocada).
+        try:
+            from store_catalog import shopify_catalog
+            prod = shopify_catalog()["by_product"].get(pid) or {}
+            for v in prod.get("variants", []):
+                vt = (v.get("t") or "").strip()
+                if vt and vt.lower() not in ("default title"):
+                    for sep in (" - ", " – ", " · ", " "):
+                        if nuevo.lower().endswith((sep + vt).lower()):
+                            nuevo = nuevo[: -len(sep + vt)].strip(" -–·")
+                            break
+        except Exception:
+            pass
         try:
             import db
             db.upsert("feed_overrides", {"pid": pid}, {"pid": pid, "title": nuevo})
@@ -185,6 +199,20 @@ def apply_action(a: dict) -> dict:
         if not m:
             return dict(ok=False, msg=f"objetivo debe ser item_id del feed o product_id: '{objetivo}'")
         pid = int(m.group(1))
+        # el título es de PRODUCTO: el feed añade la variante solo. Un sufijo de
+        # talla en el override saldría duplicado (o con la talla equivocada).
+        try:
+            from store_catalog import shopify_catalog
+            prod = shopify_catalog()["by_product"].get(pid) or {}
+            for v in prod.get("variants", []):
+                vt = (v.get("t") or "").strip()
+                if vt and vt.lower() not in ("default title"):
+                    for sep in (" - ", " – ", " · ", " "):
+                        if nuevo.lower().endswith((sep + vt).lower()):
+                            nuevo = nuevo[: -len(sep + vt)].strip(" -–·")
+                            break
+        except Exception:
+            pass
         try:
             import db
             db.upsert("feed_overrides", {"pid": pid}, {"pid": pid, "title": nuevo})
