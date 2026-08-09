@@ -781,8 +781,8 @@ def _live_deep_data() -> dict:
                         d = vistos.setdefault(int(mm.group(1)), [0, 0])
                         d[0] += r.metrics.impressions
                         d[1] += r.metrics.clicks
-            OPERATIVOS = ("insurance", "packaging", "free gift", "greeting", "canada",
-                          "add-on", "gift -", "- free")
+            OPERATIVOS = ("insurance", "packaging", "greeting", "canada", "add-on",
+                          "gift", "free", "tee", "t-shirt", "shirt", "hoodie")
             for pid_, p_ in cat_["by_product"].items():
                 if p_.get("status") != "active":
                     continue
