@@ -114,7 +114,15 @@ def build_offers(products: list) -> list:
         for v in p.get("variants", []):
             vid = int(v["id"])
             vt = v.get("title") or ""
-            title = base_title if vt in ("", "Default Title") else f"{base_title} - {vt}"
+            # la variante solo se añade si APORTA algo: los nombres de sabor suelen
+            # repetir el título ("Classic Kosher Dill Juice - Classic Kosher Dill")
+            def _words(x):
+                return set(re.sub(r"[^a-z0-9 ]+", " ", x.lower()).split())
+            title = base_title
+            if vt not in ("", "Default Title"):
+                nuevas = _words(vt) - _words(base_title) - {"the", "and", "of"}
+                if nuevas:
+                    title = f"{base_title} - {vt}"
             qty = v.get("inventory_quantity")
             tracked = bool(v.get("inventory_management"))
             in_stock = (not tracked) or (qty or 0) > 0
