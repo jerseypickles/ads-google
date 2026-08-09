@@ -470,15 +470,30 @@ CAMPS_PATH = BASE / "campaigns_local.json"
 
 
 def _load_camps() -> dict:
+    """Gestor con dos escritores posibles (Mac y nube): gana el de revisión mayor.
+
+    Comparar por reloj no sirve — la nube va en UTC y el Mac en hora local — así
+    que cada guardado incrementa `rev` y esa es la única fuente de verdad.
+    """
+    local = None
     if CAMPS_PATH.exists():
-        return json.loads(CAMPS_PATH.read_text(encoding="utf-8"))
-    doc = mongo.get_doc("manager", {"_id": "store"})  # espejo en la nube
-    if doc and doc.get("store"):
-        return doc["store"]
-    return {"campaigns": [], "negatives": []}
+        try:
+            local = json.loads(CAMPS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            local = None
+    doc = mongo.get_doc("manager", {"_id": "store"})
+    remoto = (doc or {}).get("store")
+    if local is None and remoto is None:
+        return {"campaigns": [], "negatives": []}
+    if local is None:
+        return remoto
+    if remoto is None:
+        return local
+    return remoto if int(remoto.get("rev", 0)) > int(local.get("rev", 0)) else local
 
 
 def _save_camps(data: dict) -> None:
+    data["rev"] = int(data.get("rev", 0)) + 1   # el más nuevo gana en ambos lados
     CAMPS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
     mongo.upsert("manager", {"_id": "store"}, {"store": data})
 
