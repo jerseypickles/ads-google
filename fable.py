@@ -758,7 +758,57 @@ def _live_deep_data() -> dict:
         except Exception:
             pass
 
+        # PRODUCTOS DORMIDOS: los que el feed publica pero Google casi no muestra.
+        # Antes eran invisibles para la revisión (shopping_performance_view solo
+        # trae los que tienen actividad) — sin verlos no se les puede dar vitrina.
+        dormidos = []
+        try:
+            import csv as _csv
+            import glob as _glob
+
+            from store_catalog import shopify_catalog
+
+            cat_ = shopify_catalog()
+            vistos = {}
+            q = f"""SELECT campaign.id, segments.product_item_id, metrics.impressions,
+                    metrics.clicks, metrics.conversions FROM shopping_performance_view
+                    WHERE {rng.replace('segments.date', 'segments.date')}"""
+            for b in ga.search_stream(customer_id=cid, query=q):
+                for r in b.results:
+                    mm = re.search(r"shopify_[a-z]{2}_(\d+)_",
+                                   (r.segments.product_item_id or "").lower())
+                    if mm:
+                        d = vistos.setdefault(int(mm.group(1)), [0, 0])
+                        d[0] += r.metrics.impressions
+                        d[1] += r.metrics.clicks
+            OPERATIVOS = ("insurance", "packaging", "free gift", "greeting", "canada",
+                          "add-on", "gift -", "- free")
+            for pid_, p_ in cat_["by_product"].items():
+                if p_.get("status") != "active":
+                    continue
+                if any(w in p_["title"].lower() for w in OPERATIVOS):
+                    continue
+                v = vistos.get(pid_, [0, 0])
+                if v[0] < 50:
+                    dormidos.append(dict(pid=pid_, titulo=p_["title"],
+                                         impresiones=v[0], clics=v[1]))
+            # vocabulario real de la categoría para reescribir esos títulos
+            vocab = []
+            files = sorted(_glob.glob(str(BASE / "historical_metrics_*.csv")))
+            if files:
+                for r in _csv.DictReader(open(files[-1], encoding="utf-8")):
+                    vv = int(r["busquedas_mensuales_promedio"] or 0)
+                    if vv >= 500 and not any(b_ in r["keyword"] for b_ in
+                                             ("comic", "cartoon", "claussen", "vlasic", "pub")):
+                        vocab.append((r["keyword"], vv))
+                vocab.sort(key=lambda x: -x[1])
+        except Exception as exc:
+            print(f"[deep] dormidos: {exc}", flush=True)
+            vocab = []
+
         return {"keywords_7d": kws, "grupos_7d": grupos,
+                "productos_dormidos": dormidos[:40],
+                "vocabulario_categoria": [f"{k} ({v}/mes)" for k, v in (vocab or [])[:40]],
                 "terminos_busqueda_ayer_y_hoy": terms, "funnel_7d": funnel,
                 "productos_shopping_7d": prods,
                 "rentabilidad_por_canal_7d": por_canal,
@@ -867,6 +917,18 @@ SOLO con: (a) los términos de tomate validados por CTR real ('jersey pickled to
 convirtió), y (c) cualquier término de búsqueda de PHRASE que ya haya convertido ≥2 veces — la \
 graduación natural de descubrimiento a control. Presupuesto inicial modesto ($15-20) y sus \
 negativas cruzadas en PHRASE. Si los datos no alcanzan para (c), dilo y espera.
+
+SEO DEL FEED — LA REGLA MADRE: el título debe estar escrito en el idioma del COMPRADOR, no en \
+el de la tienda. Un nombre interno de la web ("Build-your-Box", "Medley Pack") no lo busca \
+nadie: hay que traducirlo a la consulta real que representa (variety pack, sampler, gift box). \
+Usa `vocabulario_categoria` (volúmenes reales de Google) y los términos que convierten. Un \
+producto con impresiones ~0 casi nunca es un problema de puja: es que su título no coincide con \
+ninguna búsqueda existente.
+
+PRODUCTOS DORMIDOS (productos_dormidos): catálogo publicado que Google casi no muestra (<50 \
+impresiones). NO están ahí por malos: están invisibles. Su medicina es el título \
+(optimizar_titulo_feed), y solo tras darles vitrina real se juzgan por ventas. Prioriza los que \
+tengan una consulta con volumen esperándolos en el vocabulario.
 
 PRODUCTOS: VENDEDORES, SANGRANTES Y DORMIDOS (productos_shopping_7d) — tres destinos distintos:
 - VENDE → combustible: subir de grupo, puja mayor, título aún mejor. Los ganadores se riegan.
