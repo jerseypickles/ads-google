@@ -124,6 +124,28 @@ def _nueva_unidad(client, ad_group_rn: str, root_rn: str, item_id: str,
     return op
 
 
+def set_campaign_status(nombre: str, activa: bool) -> dict:
+    """Enciende o pausa la campaña EN Google Ads (el switch del panel manda)."""
+    try:
+        client = _client()
+        ga = client.get_service("GoogleAdsService")
+        camp = _campaign_by_name(ga, nombre)
+        if camp is None:
+            return dict(ok=False, msg=f"campaña '{nombre}' no está en Google Ads")
+        op = client.get_type("CampaignOperation")
+        op.update.resource_name = camp.resource_name
+        op.update.status = (client.enums.CampaignStatusEnum.ENABLED if activa
+                            else client.enums.CampaignStatusEnum.PAUSED)
+        client.copy_from(op.update_mask, field_mask_pb2.FieldMask(paths=["status"]))
+        client.get_service("CampaignService").mutate_campaigns(
+            customer_id=CUSTOMER_ID, operations=[op])
+        return dict(ok=True, msg=f"'{nombre}' → {'ACTIVA' if activa else 'PAUSADA'} en Google Ads")
+    except GoogleAdsException as ex:
+        return dict(ok=False, msg="; ".join(e.message for e in ex.failure.errors)[:200])
+    except Exception as exc:
+        return dict(ok=False, msg=str(exc)[:200])
+
+
 def keyword_7d_stats(campana: str, text: str):
     """(coste, conversiones) de una keyword en los últimos 7 días, o None."""
     if tipo == "optimizar_titulo_feed":

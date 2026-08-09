@@ -1106,12 +1106,26 @@ def campaigns_accept():
 @app.route("/api/campaigns/toggle", methods=["POST"])
 def campaigns_toggle():
     body = request.get_json(silent=True) or {}
+    activa = bool(body.get("enabled"))
     store = _load_camps()
+    msg = None
     for c in store["campaigns"]:
-        if c["id"] == body.get("id"):
-            c["enabled"] = bool(body.get("enabled"))
+        if c["id"] != body.get("id"):
+            continue
+        c["enabled"] = activa
+        # si ya vive en Google Ads, el switch manda de verdad
+        if c.get("status") == "LIVE":
+            r = fable_actions.set_campaign_status(c["name"], activa)
+            msg = r["msg"]
+            if r["ok"]:
+                if activa:
+                    c.pop("paused_at", None)
+                    c.pop("pause_reason", None)
+                else:
+                    c["paused_at"] = time.strftime("%Y-%m-%d")
+                _live_cache.clear()
     _save_camps(store)
-    return jsonify(ok=True)
+    return jsonify(ok=True, msg=msg)
 
 
 @app.route("/api/campaigns/delete", methods=["POST"])
