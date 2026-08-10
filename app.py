@@ -549,6 +549,7 @@ def _run_review() -> None:
     try:
         review = fable.generate_campaign_review()
         _review_state["error"] = None
+        fable_actions.asegurar_audiencias_en_observacion()  # nunca restringir por audiencia
         _autopilot(review)      # Nivel 2: lo seguro se ejecuta solo (verificado)
         _autoscale()            # Nivel 3: presupuestos y pujas, sin techo pero con pruebas
         _maybe_expand(review)   # y el crecimiento lo decide su análisis, no fechas

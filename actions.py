@@ -124,6 +124,46 @@ def _nueva_unidad(client, ad_group_rn: str, root_rn: str, item_id: str,
     return op
 
 
+def asegurar_audiencias_en_observacion(nombres: list = None) -> dict:
+    """Blindaje: las audiencias deben ser OBSERVACIÓN, nunca segmentación.
+
+    Sin targeting_setting explícito Google restringe la campaña a esas listas y
+    el alcance se desploma (incidente 2026-08-10).
+    """
+    try:
+        client = _client()
+        ga = client.get_service("GoogleAdsService")
+        q = """SELECT campaign.resource_name, campaign.name,
+               campaign.targeting_setting.target_restrictions FROM campaign
+               WHERE campaign.status = 'ENABLED'
+                 AND campaign.advertising_channel_type = 'SEARCH'"""
+        ops, tocadas = [], []
+        for b in ga.search_stream(customer_id=CUSTOMER_ID, query=q):
+            for r in b.results:
+                if nombres and r.campaign.name not in nombres:
+                    continue
+                aud = [t for t in r.campaign.targeting_setting.target_restrictions
+                       if t.targeting_dimension.name == "AUDIENCE"]
+                if aud and all(t.bid_only for t in aud):
+                    continue                      # ya está en observación
+                op = client.get_type("CampaignOperation")
+                op.update.resource_name = r.campaign.resource_name
+                tr = client.get_type("TargetRestriction")
+                tr.targeting_dimension = client.enums.TargetingDimensionEnum.AUDIENCE
+                tr.bid_only = True
+                op.update.targeting_setting.target_restrictions.append(tr)
+                client.copy_from(op.update_mask, field_mask_pb2.FieldMask(
+                    paths=["targeting_setting.target_restrictions"]))
+                ops.append(op)
+                tocadas.append(r.campaign.name)
+        if ops:
+            client.get_service("CampaignService").mutate_campaigns(
+                customer_id=CUSTOMER_ID, operations=ops)
+        return dict(ok=True, msg=f"audiencias en observación; corregidas: {tocadas or 'ninguna'}")
+    except Exception as exc:
+        return dict(ok=False, msg=str(exc)[:200])
+
+
 def set_campaign_status(nombre: str, activa: bool) -> dict:
     """Enciende o pausa la campaña EN Google Ads (el switch del panel manda)."""
     try:
