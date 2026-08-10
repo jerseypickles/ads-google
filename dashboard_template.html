@@ -648,7 +648,7 @@
     <a href="#pixel" data-view="pixel"><span class="ndot"></span>Salud del pixel</a>
   </div>
   <div class="foot">
-    <span class="fable-badge">⚡ Fable 5 dentro</span><br>
+    <span class="fable-badge">⚡ Fable · Opus 5</span><br>
     Google Ads API v25<br>
     jerseypickles.com
   </div>
@@ -750,7 +750,7 @@
   <section id="view-listings" class="view" hidden>
     <header class="masthead">
       <div>
-        <p class="eyebrow">Listings · impulsado por Fable 5</p>
+        <p class="eyebrow">Listings · impulsado por Fable (Opus 5)</p>
         <h1>Campañas listas para lanzar</h1>
         <p class="meta">Fable arma cada plan con datos reales y se auto-audita. Tú aceptas — y el switch del gestor decide cómo se lanza.</p>
       </div>
@@ -831,7 +831,7 @@
   </section>
 
   <footer>
-    <span>Fuente: Google Ads API (KeywordPlanIdeaService, search_term_view, campaign) · estrategia: Fable 5</span>
+    <span>Fuente: Google Ads API (KeywordPlanIdeaService, search_term_view, campaign) · estrategia: Fable · Opus 5</span>
     <span>Jersey Pickles · jerseypickles.com</span>
   </footer>
 </div>
@@ -1894,7 +1894,7 @@ async function loadPlan() {
       if (!j.plan) {
         st.hidden = true;
         $('#plan-out').innerHTML = `<div class="think-panel">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="fable-badge">⚡ Fable 5</span><b style="font-size:15px">Fable está pensando tu plan…</b></div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="fable-badge">⚡ Fable · Opus 5</span><b style="font-size:15px">Fable está pensando tu plan…</b></div>
           <div class="tsteps">${steps}</div>
           <p class="plan-meta" style="margin-top:14px">Suele tardar 3–6 minutos. Puedes seguir usando el panel — esta vista se actualiza sola.</p></div>`;
       } else {
@@ -2098,7 +2098,7 @@ async function loadShoppingPlan() {
       ];
       const idx = Math.min(STAGES.length - 1, Math.floor(mins / 1.4));
       out.innerHTML = `<div class="think-panel">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="fable-badge">⚡ Fable 5</span><b style="font-size:15px">Fable está diseñando tu primera campaña de Shopping…</b></div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="fable-badge">⚡ Fable · Opus 5</span><b style="font-size:15px">Fable está diseñando tu primera campaña de Shopping…</b></div>
         <div class="tsteps">${STAGES.map((s, i) => `<div class="tstep ${i < idx ? 'done' : i === idx ? 'on' : ''}"><span class="tdot"></span>${i < idx ? '✓ ' : ''}${s}</div>`).join('')}</div>
         <p class="plan-meta" style="margin-top:14px">Suele tardar 3–6 minutos. Esta vista se actualiza sola.</p></div>`;
       $('#btn-generate-shop').disabled = true;
@@ -2216,7 +2216,7 @@ function renderPlan(p) {
   if (!pending.length) {
     html += `<section class="think-panel" style="margin-bottom:18px">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <span class="fable-badge">⚡ Fable 5</span>
+        <span class="fable-badge">⚡ Fable · Opus 5</span>
         <b style="font-size:15px">Todo lo propuesto está en marcha — fase de aprendizaje</b></div>
       <p class="note" style="max-width:none;margin:10px 0 0">Fable está madurando con los datos de las campañas activas (lecturas cada 3 h, lecciones automáticas). Cuando el plan cumpla una semana en marcha, propondrá <b>crecimiento él solo</b>: nuevos temas del vigía, expansiones estacionales, campaña de marca… Y puedes adelantarlo cuando quieras con <b>“Generar plan con Fable”</b> — la propuesta será incremental, nunca repetida.</p>
       ${p._meta ? `<p class="plan-meta" style="margin-top:12px">Plan vigente: ${esc(p._meta.generated_at)} · ${p._meta.self_review_rounds != null ? `auto-auditado${p._meta.self_review_rounds > 0 ? ` (${p._meta.self_review_rounds} correcciones)` : ''}` : ''}</p>` : ''}

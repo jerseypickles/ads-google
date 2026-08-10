@@ -1,4 +1,4 @@
-"""Fable (claude-fable-5) como motor de estrategia dentro de la app.
+"""Fable (sobre claude-opus-5) como motor de estrategia dentro de la app.
 
 Genera el plan de campañas Search de Jersey Pickles a partir de los datos
 reales de keywords y rendimiento (dashboard_data). Produce listings completos:
@@ -23,7 +23,7 @@ from dashboard_data import build_data
 
 BASE = Path(__file__).parent
 PLAN_PATH = BASE / "fable_plan.json"
-MODEL = "claude-fable-5"
+MODEL = "claude-opus-5"
 
 # ---------------------------------------------------------------------------
 # Memoria de Fable: lecciones que acumula durante el proyecto
