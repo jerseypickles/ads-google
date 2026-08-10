@@ -806,7 +806,15 @@ def _live_deep_data() -> dict:
             print(f"[deep] dormidos: {exc}", flush=True)
             vocab = []
 
+        # desplomes: se calculan en la app y se inyectan aquí si los hay
+        try:
+            import app as _app
+            caidas = _app._detectar_caidas()
+        except Exception:
+            caidas = []
+
         return {"keywords_7d": kws, "grupos_7d": grupos,
+                "alertas_de_caida": caidas,
                 "productos_dormidos": dormidos[:40],
                 "vocabulario_categoria": [f"{k} ({v}/mes)" for k, v in (vocab or [])[:40]],
                 "terminos_busqueda_ayer_y_hoy": terms, "funnel_7d": funnel,
@@ -917,6 +925,12 @@ SOLO con: (a) los términos de tomate validados por CTR real ('jersey pickled to
 convirtió), y (c) cualquier término de búsqueda de PHRASE que ya haya convertido ≥2 veces — la \
 graduación natural de descubrimiento a control. Presupuesto inicial modesto ($15-20) y sus \
 negativas cruzadas en PHRASE. Si los datos no alcanzan para (c), dilo y espera.
+
+DESPLOMES DE TRÁFICO (alertas_de_caida): si una campaña cae por debajo del 25% de sus \
+impresiones habituales, NO es el mercado — es un fallo de configuración (audiencias en \
+segmentación, negativa demasiado amplia, presupuesto agotado, anuncio rechazado). Trátalo como \
+urgencia ALTA, dilo en las notas de esa campaña y propón revisar la causa antes que cualquier \
+optimización: una campaña que no aparece no se optimiza, se repara.
 
 SEO DEL FEED — LA REGLA MADRE: el título debe estar escrito en el idioma del COMPRADOR, no en \
 el de la tienda. Un nombre interno de la web ("Build-your-Box", "Medley Pack") no lo busca \

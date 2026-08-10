@@ -550,6 +550,7 @@ def _run_review() -> None:
         review = fable.generate_campaign_review()
         _review_state["error"] = None
         fable_actions.asegurar_audiencias_en_observacion()  # nunca restringir por audiencia
+        _detectar_caidas()      # un desplome de tráfico es un fallo, no una tendencia
         _autopilot(review)      # Nivel 2: lo seguro se ejecuta solo (verificado)
         _autoscale()            # Nivel 3: presupuestos y pujas, sin techo pero con pruebas
         _maybe_expand(review)   # y el crecimiento lo decide su análisis, no fechas
@@ -840,6 +841,59 @@ def _last_touch(campana: str, tipos: tuple, objetivo: str = None) -> float:
         except Exception:
             pass
     return best
+
+
+def _detectar_caidas() -> list:
+    """Desplomes de tráfico: fallo de configuración, no del mercado.
+
+    Compara las impresiones de hoy (hasta la hora actual) con la media de esas
+    mismas horas en los 7 días previos. Una campaña sana varía; una rota cae a cero.
+    """
+    try:
+        from datetime import timedelta
+
+        from google.ads.googleads.client import GoogleAdsClient
+
+        client = GoogleAdsClient.load_from_storage(str(BASE / "google-ads.yaml"))
+        ga = client.get_service("GoogleAdsService")
+        hoy = _account_today()
+        hora = int(time.strftime("%H"))
+        if hora < 6:
+            return []                      # muy temprano: aún no hay muestra
+        desde = (hoy - timedelta(days=7)).isoformat()
+        q = f"""SELECT segments.date, segments.hour, campaign.name, metrics.impressions
+                FROM campaign WHERE campaign.status = 'ENABLED'
+                  AND segments.date BETWEEN '{desde}' AND '{hoy.isoformat()}'"""
+        hoy_s, previos = {}, {}
+        for b in ga.search_stream(customer_id="4888823590", query=q):
+            for r in b.results:
+                if r.segments.hour > hora:
+                    continue
+                n = r.campaign.name
+                if r.segments.date == hoy.isoformat():
+                    hoy_s[n] = hoy_s.get(n, 0) + r.metrics.impressions
+                else:
+                    previos.setdefault(n, {}).setdefault(r.segments.date, 0)
+                    previos[n][r.segments.date] += r.metrics.impressions
+        alertas = []
+        for n, dias in previos.items():
+            if len(dias) < 3:
+                continue                   # sin historia suficiente
+            media = sum(dias.values()) / len(dias)
+            actual = hoy_s.get(n, 0)
+            if media >= 100 and actual < media * 0.25:
+                alertas.append(dict(campana=n, impresiones_hoy=actual,
+                                    media_esperada=round(media),
+                                    caida_pct=round((1 - actual / media) * 100)))
+        for a in alertas:
+            print(f"[ALERTA] {a['campana'][:40]}: {a['impresiones_hoy']} impresiones vs "
+                  f"{a['media_esperada']} esperadas (−{a['caida_pct']}%) — revisar configuración", flush=True)
+        if alertas:
+            mongo.save("alertas_caida", {"alertas": alertas})
+        return alertas
+    except Exception as exc:
+        print(f"[caidas] error: {exc}", flush=True)
+        return []
 
 
 def _autoscale() -> None:
