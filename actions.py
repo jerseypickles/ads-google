@@ -196,6 +196,34 @@ def keyword_7d_stats(campana: str, text: str):
             return dict(ok=False, msg="texto promocional en el título — política de Google lo prohíbe")
         if nuevo == nuevo.upper():
             return dict(ok=False, msg="título todo en mayúsculas — política de Google")
+        # ATRIBUTOS INVENTADOS: un título no puede afirmar algo que la ficha no dice.
+        # Google desaprueba por tergiversación y el cliente pide reembolso.
+        ATRIBUTOS = ("in oil", "en aceite", "marinated", "marinado", "organic", "orgánico",
+                     "gluten free", "sin gluten", "sugar free", "sin azúcar", "vegan",
+                     "kosher certified", "non gmo", "raw", "unpasteurized", "probiotic",
+                     "smoked", "ahumado", "spicy", "hot ", "sweet ", "fermented")
+        try:
+            import json as _json
+            import urllib.request as _url
+            mm = re.search(r"shopify_[a-z]{2}_(\d+)_", objetivo, re.I) or re.search(r"(\d{10,})", objetivo)
+            if mm:
+                tok = (BASE / ".shopify_token").read_text().strip()
+                rq = _url.Request(
+                    f"https://113e43-2.myshopify.com/admin/api/2025-07/products/{mm.group(1)}.json",
+                    headers={"X-Shopify-Access-Token": tok})
+                prod = _json.loads(_url.urlopen(rq, timeout=25).read())["product"]
+                ficha = " ".join([prod.get("title", ""), prod.get("body_html", "") or "",
+                                  prod.get("tags", "") or "", prod.get("product_type", "") or ""]).lower()
+                ficha = re.sub(r"<[^>]+>", " ", ficha)
+                inventados = [a.strip() for a in ATRIBUTOS
+                              if a in nuevo.lower() and a.strip() not in ficha]
+                if inventados:
+                    return dict(ok=False, msg=(
+                        f"BLOQUEADO: el título afirma {inventados} y la ficha del producto no lo "
+                        f"respalda — riesgo de desaprobación por tergiversación. Verifícalo primero."))
+        except Exception:
+            pass   # si no se puede verificar, no se bloquea (el dueño decide)
+
         m = re.search(r"shopify_[a-z]{2}_(\d+)_\d+", objetivo, re.I) or re.search(r"(\d{10,})", objetivo)
         if not m:
             return dict(ok=False, msg=f"objetivo debe ser item_id del feed o product_id: '{objetivo}'")
@@ -257,6 +285,34 @@ def apply_action(a: dict) -> dict:
             return dict(ok=False, msg="texto promocional en el título — política de Google lo prohíbe")
         if nuevo == nuevo.upper():
             return dict(ok=False, msg="título todo en mayúsculas — política de Google")
+        # ATRIBUTOS INVENTADOS: un título no puede afirmar algo que la ficha no dice.
+        # Google desaprueba por tergiversación y el cliente pide reembolso.
+        ATRIBUTOS = ("in oil", "en aceite", "marinated", "marinado", "organic", "orgánico",
+                     "gluten free", "sin gluten", "sugar free", "sin azúcar", "vegan",
+                     "kosher certified", "non gmo", "raw", "unpasteurized", "probiotic",
+                     "smoked", "ahumado", "spicy", "hot ", "sweet ", "fermented")
+        try:
+            import json as _json
+            import urllib.request as _url
+            mm = re.search(r"shopify_[a-z]{2}_(\d+)_", objetivo, re.I) or re.search(r"(\d{10,})", objetivo)
+            if mm:
+                tok = (BASE / ".shopify_token").read_text().strip()
+                rq = _url.Request(
+                    f"https://113e43-2.myshopify.com/admin/api/2025-07/products/{mm.group(1)}.json",
+                    headers={"X-Shopify-Access-Token": tok})
+                prod = _json.loads(_url.urlopen(rq, timeout=25).read())["product"]
+                ficha = " ".join([prod.get("title", ""), prod.get("body_html", "") or "",
+                                  prod.get("tags", "") or "", prod.get("product_type", "") or ""]).lower()
+                ficha = re.sub(r"<[^>]+>", " ", ficha)
+                inventados = [a.strip() for a in ATRIBUTOS
+                              if a in nuevo.lower() and a.strip() not in ficha]
+                if inventados:
+                    return dict(ok=False, msg=(
+                        f"BLOQUEADO: el título afirma {inventados} y la ficha del producto no lo "
+                        f"respalda — riesgo de desaprobación por tergiversación. Verifícalo primero."))
+        except Exception:
+            pass   # si no se puede verificar, no se bloquea (el dueño decide)
+
         m = re.search(r"shopify_[a-z]{2}_(\d+)_\d+", objetivo, re.I) or re.search(r"(\d{10,})", objetivo)
         if not m:
             return dict(ok=False, msg=f"objetivo debe ser item_id del feed o product_id: '{objetivo}'")
