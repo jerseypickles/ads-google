@@ -973,7 +973,13 @@ def _autoscale() -> None:
             manual = c["estrategia"] == "MANUAL_CPC"
             nuevo = razon = None
 
-            if roas >= SCALE_MIN_ROAS and c["perdido_presup"] > SCALE_LOST_IS and c["cost"] > 10:
+            # Tras cambiar la estrategia de puja hay 1-2 semanas de reaprendizaje con
+            # ROAS inestable. SUBIR con ese dato es amplificar ruido; el recorte
+            # defensivo sí se permite, porque un desplome real sigue siendo un desplome.
+            reaprendiendo = _recent_doc("strategy_changes", {"campaign": c["name"]}, 14)
+
+            if (roas >= SCALE_MIN_ROAS and c["perdido_presup"] > SCALE_LOST_IS
+                    and c["cost"] > 10 and not reaprendiendo):
                 paso = 0.50 if manual else 0.30      # el guardián permite más; se va sobrio
                 nuevo = round(c["budget"] * (1 + paso), 2)
                 razon = (f"ROAS {roas:.1f}x en 3 días con {c['perdido_presup']*100:.0f}% de subastas "
