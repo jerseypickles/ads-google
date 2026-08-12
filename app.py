@@ -558,6 +558,7 @@ def _run_review() -> None:
     for etiqueta, paso in (
         ("audiencias", fable_actions.asegurar_audiencias_en_observacion),  # nunca restringir
         ("caídas", _detectar_caidas),      # un desplome de tráfico es un fallo, no tendencia
+        ("negativas suicidas", _auditar_negativas_suicidas),  # nunca bloquearse a sí mismo
         ("autoscale", _autoscale),         # Nivel 3: presupuestos y pujas, con pruebas
     ):
         try:
@@ -922,6 +923,85 @@ def _detectar_caidas() -> list:
     except Exception as exc:
         print(f"[caidas] error: {exc}", flush=True)
         return []
+
+
+def _auditar_negativas_suicidas() -> None:
+    """Elimina las negativas que bloquean las keywords activas de su propia campaña.
+
+    Ya ha pasado tres veces (dos costaron $149 y $609): el ejecutor tiene guarda
+    para las que añade Fable en caliente, pero las que entran al CREAR la campaña
+    —listas heredadas de plantilla— no pasan por ahí. El 12-ago 'benefits' [BROAD]
+    anulaba 'pickle juice benefits' en Electrolytes: la campaña pagaba por tener
+    esa keyword y se la bloqueaba a sí misma, así que era imposible que convirtiera.
+
+    Una negativa que anula una keyword propia no es una decisión discutible, es una
+    contradicción — se retira sola y se deja constancia en el log.
+    """
+    from google.ads.googleads.client import GoogleAdsClient
+
+    client = GoogleAdsClient.load_from_storage(str(BASE / "google-ads.yaml"))
+    ga = client.get_service("GoogleAdsService")
+    cid = "4888823590"
+
+    kws: dict[str, list[str]] = {}
+    for b in ga.search_stream(customer_id=cid, query="""
+            SELECT campaign.name, ad_group_criterion.keyword.text FROM keyword_view
+            WHERE ad_group_criterion.status = 'ENABLED' AND campaign.status = 'ENABLED'"""):
+        for r in b.results:
+            kws.setdefault(r.campaign.name, []).append(
+                r.ad_group_criterion.keyword.text.lower())
+
+    quitar = []
+    for b in ga.search_stream(customer_id=cid, query="""
+            SELECT campaign.name, campaign_criterion.keyword.text,
+                   campaign_criterion.keyword.match_type, campaign_criterion.resource_name
+            FROM campaign_criterion WHERE campaign_criterion.negative = TRUE
+              AND campaign_criterion.type = 'KEYWORD' AND campaign.status = 'ENABLED'"""):
+        for r in b.results:
+            mias = kws.get(r.campaign.name)
+            if not mias:
+                continue                      # Shopping no tiene keywords: nada que anular
+            texto = r.campaign_criterion.keyword.text.lower()
+            match = r.campaign_criterion.keyword.match_type.name
+            if match == "BROAD":               # bloquea si TODAS sus palabras están en la keyword
+                choca = [k for k in mias if set(texto.split()) <= set(k.split())]
+            elif match == "PHRASE":
+                choca = [k for k in mias if texto in k]
+            else:
+                choca = [k for k in mias if texto == k]
+            if choca:
+                quitar.append((r.campaign.name, texto, match,
+                               r.campaign_criterion.resource_name, choca))
+
+    if not quitar:
+        return
+    svc = client.get_service("CampaignCriterionService")
+    for camp, texto, match, rn, choca in quitar:
+        op = client.get_type("CampaignCriterionOperation")
+        op.remove = rn
+        try:
+            svc.mutate_campaign_criteria(customer_id=cid, operations=[op])
+            msg = (f"🤖 auto · negativa '{texto}' [{match}] retirada de {camp}: "
+                   f"anulaba su propia keyword {choca[:2]}")
+            print(f"[negativas] {msg}", flush=True)
+            # No pasa por _apply_and_log: apply_action no ejecuta este tipo, la
+            # retirada ya se hizo aquí. Se escribe la entrada con el mismo formato.
+            accion = {"tipo": "quitar_negativa_suicida", "campana": camp,
+                      "objetivo": texto,
+                      "motivo": f"bloqueaba keywords propias: {choca[:3]}"}
+            entry = dict(key=_action_key(accion), action=accion, ok=True, msg=msg,
+                         ts=time.strftime("%Y-%m-%d %H:%M"), auto=True)
+            log = _load_actions_log()
+            log.append(entry)
+            ACTIONS_LOG.write_text(json.dumps(log, ensure_ascii=False, indent=1),
+                                   encoding="utf-8")
+            mongo.save("actions", entry)
+            fable.learn(f"Negativa suicida retirada automáticamente en {camp}: "
+                        f"'{texto}' [{match}] anulaba {choca[:2]}. Al crear campañas, "
+                        f"cruzar SIEMPRE la lista de negativas heredadas contra las "
+                        f"keywords propias antes de subirla.")
+        except Exception as exc:
+            print(f"[negativas] no se pudo retirar '{texto}' de {camp}: {exc}", flush=True)
 
 
 def _autoscale() -> None:

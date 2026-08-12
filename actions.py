@@ -371,8 +371,11 @@ def apply_action(a: dict) -> dict:
             match = str(a.get("match") or "BROAD").upper()
             if match not in ("BROAD", "PHRASE", "EXACT"):
                 match = "BROAD"
+            # Por PALABRAS, no por subcadena: 'beet' está dentro de 'sweet pickles'
+            # y con `neg in kw` se rechazaba una negativa perfectamente legítima.
+            pal_neg = set(neg.split())
             for kw in _active_keywords(ga, camp.id):
-                if neg == kw or neg in kw:
+                if neg == kw or pal_neg <= set(kw.split()):
                     return dict(ok=False, msg=f"BLOQUEADO: '{objetivo}' chocaría con la keyword activa '{kw}'")
             # una BROAD que contiene una keyword de OTRA campaña propia mata su tráfico:
             # el flujo entre campañas se hace con negativas EXACT (lección del proyecto)
