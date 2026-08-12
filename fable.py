@@ -813,6 +813,43 @@ def _live_deep_data() -> dict:
         except Exception:
             caidas = []
 
+        # ESTRATEGIA DE PUJA REAL por campaña. Estaba escrita a mano en el prompt
+        # ("Maximizar clics con tope de CPC $2") e igual para todas: mentira para
+        # Shopping y Remarketing (MANUAL_CPC) y para cualquier techo distinto de $2.
+        # El 12-ago Fable propuso subir el tope de CPC de Discovery cuando ya había
+        # pasado a MAXIMIZE_CONVERSION_VALUE, donde ese tope ni siquiera existe.
+        estrategias = {}
+        try:
+            qe = """SELECT campaign.name, campaign.bidding_strategy_type,
+                           campaign.target_spend.cpc_bid_ceiling_micros,
+                           campaign.maximize_conversion_value.target_roas,
+                           campaign.target_roas.target_roas,
+                           campaign.target_cpa.target_cpa_micros
+                    FROM campaign WHERE campaign.status = 'ENABLED'"""
+            for b in ga.search_stream(customer_id=cid, query=qe):
+                for r in b.results:
+                    c_ = r.campaign
+                    t = c_.bidding_strategy_type.name
+                    if t == "TARGET_SPEND":
+                        techo = c_.target_spend.cpc_bid_ceiling_micros / 1e6
+                        txt = "Maximizar clics" + (f" con tope de CPC ${techo:.2f}" if techo else " sin tope")
+                    elif t == "MAXIMIZE_CONVERSION_VALUE":
+                        tr = c_.maximize_conversion_value.target_roas
+                        txt = ("Maximizar valor de conversión"
+                               + (f" con ROAS objetivo {tr*100:.0f}%" if tr else " sin objetivo")
+                               + " — NO tiene tope de CPC: no proponer ajustar_tope_cpc")
+                    elif t == "MANUAL_CPC":
+                        txt = "CPC manual — la puja se toca por grupo (ajustar_puja_grupo)"
+                    elif t == "TARGET_ROAS":
+                        txt = f"ROAS objetivo {c_.target_roas.target_roas*100:.0f}%"
+                    elif t == "TARGET_CPA":
+                        txt = f"CPA objetivo ${c_.target_cpa.target_cpa_micros/1e6:.2f}"
+                    else:
+                        txt = t
+                    estrategias[c_.name] = txt
+        except Exception as exc:
+            print(f"[deep] estrategias_de_puja falló: {exc}", flush=True)
+
         # SEGMENTOS DE INTENCIÓN (7d). Sin esto sólo se ve la cuenta keyword a
         # keyword y se optimiza en ese nivel, que es donde el dinero NO está.
         # El 12-ago se descubrió a mano que el 47% del presupuesto iba a búsquedas
@@ -868,6 +905,7 @@ def _live_deep_data() -> dict:
             segmentos = {}
 
         return {"keywords_7d": kws, "grupos_7d": grupos,
+                "estrategia_de_puja_por_campana": estrategias,
                 "segmentos_de_intencion_7d": segmentos,
                 "alertas_de_caida": caidas,
                 "productos_dormidos": dormidos[:40],
@@ -902,7 +940,8 @@ def build_campaign_review_prompt() -> str:
             "name": c["name"], "status": c.get("status"), "enabled": c.get("enabled"),
             "dias_activa": dias_activa,
             "en_aprendizaje": dias_activa is not None and dias_activa < 7,
-            "estrategia_puja": "Maximizar clics con tope de CPC $2",
+            "estrategia_puja": (deep.get("estrategia_de_puja_por_campana") or {}).get(
+                c["name"], "(desconocida — no proponer cambios de puja a ciegas)"),
             "match_role": c.get("match_role"), "daily_budget_usd": c.get("daily_budget_usd"),
             "cross_negatives_count": len(c.get("cross_negatives", [])),
             "ad_groups": [

@@ -202,10 +202,16 @@ def keyword_7d_stats(campana: str, text: str):
             return dict(ok=False, msg="título todo en mayúsculas — política de Google")
         # ATRIBUTOS INVENTADOS: un título no puede afirmar algo que la ficha no dice.
         # Google desaprueba por tergiversación y el cliente pide reembolso.
+        # 'refrigerated' se añadió el 12-ago: se propuso (y se escribió a mano) un
+        # "Fresh Refrigerated" que ni la ficha ni la política de envíos respaldan.
+        # Prometer cadena de frío que no existe es una devolución segura escondida
+        # tras una palabra que suena inofensiva.
         ATRIBUTOS = ("in oil", "en aceite", "marinated", "marinado", "organic", "orgánico",
                      "gluten free", "sin gluten", "sugar free", "sin azúcar", "vegan",
                      "kosher certified", "non gmo", "raw", "unpasteurized", "probiotic",
-                     "smoked", "ahumado", "spicy", "hot ", "sweet ", "fermented")
+                     "smoked", "ahumado", "spicy", "hot ", "sweet ", "fermented",
+                     "refrigerated", "refrigerado", "keep cold", "small batch",
+                     "handmade", "hecho a mano", "artisan", "artesanal")
         try:
             import json as _json
             import urllib.request as _url
@@ -291,10 +297,16 @@ def apply_action(a: dict) -> dict:
             return dict(ok=False, msg="título todo en mayúsculas — política de Google")
         # ATRIBUTOS INVENTADOS: un título no puede afirmar algo que la ficha no dice.
         # Google desaprueba por tergiversación y el cliente pide reembolso.
+        # 'refrigerated' se añadió el 12-ago: se propuso (y se escribió a mano) un
+        # "Fresh Refrigerated" que ni la ficha ni la política de envíos respaldan.
+        # Prometer cadena de frío que no existe es una devolución segura escondida
+        # tras una palabra que suena inofensiva.
         ATRIBUTOS = ("in oil", "en aceite", "marinated", "marinado", "organic", "orgánico",
                      "gluten free", "sin gluten", "sugar free", "sin azúcar", "vegan",
                      "kosher certified", "non gmo", "raw", "unpasteurized", "probiotic",
-                     "smoked", "ahumado", "spicy", "hot ", "sweet ", "fermented")
+                     "smoked", "ahumado", "spicy", "hot ", "sweet ", "fermented",
+                     "refrigerated", "refrigerado", "keep cold", "small batch",
+                     "handmade", "hecho a mano", "artisan", "artesanal")
         try:
             import json as _json
             import urllib.request as _url
