@@ -1093,15 +1093,19 @@ def generate_campaign_review() -> dict:
 
         client = Anthropic()
         with client.beta.messages.stream(
-            model=MODEL, max_tokens=8000,
+            model=MODEL, max_tokens=32000,
             betas=["server-side-fallback-2026-07-01"], fallbacks="default",
             messages=[{"role": "user", "content": prompt}],
         ) as stream:
             response = stream.get_final_message()
         if response.stop_reason == "refusal":
             raise RuntimeError("Fable rechazó la auditoría.")
+        # Un corte por longitud deja el JSON a medias: hay que decirlo con ese
+        # nombre, no dejar que reviente luego como "Expecting ',' delimiter".
+        if response.stop_reason == "max_tokens":
+            raise RuntimeError("auditoría cortada por max_tokens — JSON incompleto")
         raw = next(b.text for b in response.content if b.type == "text")
-        review = json.loads(re.search(r"\{.*\}", raw, re.S).group(0))
+        review = _extract_json(raw)   # raw_decode; el regex codicioso rompía con '}' internos
         engine = "anthropic-sdk"
     else:
         review = _generate_via_cli(prompt)

@@ -546,13 +546,28 @@ def _maybe_expand(review: dict) -> None:
 
 
 def _run_review() -> None:
+    """Auditoría de 3h. Las capas DETERMINISTAS van primero y aisladas.
+
+    Antes todo colgaba detrás de generate_campaign_review() en un solo try: el
+    11-ago la auditoría empezó a devolver JSON cortado y se llevó por delante
+    audiencias, detector de caídas y escalado durante ~18h sin que se notara.
+    Ninguna de esas tres necesita al modelo — sólo leen Google Ads y aplican
+    reglas — así que si el LLM cae, la cuenta se sigue defendiendo sola.
+    """
+    for etiqueta, paso in (
+        ("audiencias", fable_actions.asegurar_audiencias_en_observacion),  # nunca restringir
+        ("caídas", _detectar_caidas),      # un desplome de tráfico es un fallo, no tendencia
+        ("autoscale", _autoscale),         # Nivel 3: presupuestos y pujas, con pruebas
+    ):
+        try:
+            paso()
+        except Exception as exc:
+            print(f"[auditor] {etiqueta} falló (el resto sigue): {exc}", flush=True)
+
     try:
         review = fable.generate_campaign_review()
         _review_state["error"] = None
-        fable_actions.asegurar_audiencias_en_observacion()  # nunca restringir por audiencia
-        _detectar_caidas()      # un desplome de tráfico es un fallo, no una tendencia
         _autopilot(review)      # Nivel 2: lo seguro se ejecuta solo (verificado)
-        _autoscale()            # Nivel 3: presupuestos y pujas, sin techo pero con pruebas
         _maybe_expand(review)   # y el crecimiento lo decide su análisis, no fechas
     except Exception as exc:
         _review_state["error"] = str(exc)

@@ -61,9 +61,13 @@ def _keyword_criterion(ga, campaign_id: int, text: str):
 
 
 def _active_keywords(ga, campaign_id: int) -> list[str]:
+    # SOLO las habilitadas: una keyword pausada ya no trae tráfico, así que una
+    # negativa que la contenga no bloquea nada nuestro. Si se contaran las pausadas,
+    # el guardián impediría para siempre negativizar el término que acaba de pausar.
     q = f"""SELECT ad_group_criterion.keyword.text FROM ad_group_criterion
             WHERE campaign.id = {campaign_id} AND ad_group_criterion.type = 'KEYWORD'
-              AND ad_group_criterion.negative = FALSE"""
+              AND ad_group_criterion.negative = FALSE
+              AND ad_group_criterion.status = 'ENABLED'"""
     return [r.ad_group_criterion.keyword.text.lower()
             for b in ga.search_stream(customer_id=CUSTOMER_ID, query=q) for r in b.results]
 
