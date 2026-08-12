@@ -559,6 +559,7 @@ def _run_review() -> None:
         ("audiencias", fable_actions.asegurar_audiencias_en_observacion),  # nunca restringir
         ("caídas", _detectar_caidas),      # un desplome de tráfico es un fallo, no tendencia
         ("negativas suicidas", _auditar_negativas_suicidas),  # nunca bloquearse a sí mismo
+        ("balance de acciones", _evaluar_acciones),  # ¿sirvió lo que hicimos?
         ("autoscale", _autoscale),         # Nivel 3: presupuestos y pujas, con pruebas
     ):
         try:
@@ -923,6 +924,24 @@ def _detectar_caidas() -> list:
     except Exception as exc:
         print(f"[caidas] error: {exc}", flush=True)
         return []
+
+
+def _evaluar_acciones() -> None:
+    """Mide si las acciones ya ejecutadas sirvieron (ver feedback.py).
+
+    Import perezoso: feedback.py importa app para la zona horaria y el log, así
+    que a nivel de módulo esto sería un ciclo.
+    """
+    import feedback
+
+    res = feedback.evaluar()
+    nuevas = (res or {}).get("nuevas_esta_vez") or 0
+    if nuevas:
+        pt = res.get("por_tipo") or {}
+        resumen = " · ".join(
+            f"{t}: {d['tasa_acierto_pct']}% de {d['juzgadas']}"
+            for t, d in pt.items() if d.get("tasa_acierto_pct") is not None)
+        print(f"[balance] {nuevas} acciones evaluadas — {resumen}", flush=True)
 
 
 def _auditar_negativas_suicidas() -> None:

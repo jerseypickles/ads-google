@@ -904,7 +904,18 @@ def _live_deep_data() -> dict:
             print(f"[deep] segmentos_de_intencion falló: {exc}", flush=True)
             segmentos = {}
 
+        # Qué pasó DESPUÉS de cada acción propia. Sin esto el sistema tenía un
+        # diario (qué hizo y cuándo) pero ninguna prueba de si servía: 120
+        # acciones ejecutadas y cero comprobadas.
+        try:
+            import feedback as _fb
+            balance = _fb.resumen()
+        except Exception as exc:
+            print(f"[deep] balance de acciones falló: {exc}", flush=True)
+            balance = {}
+
         return {"keywords_7d": kws, "grupos_7d": grupos,
+                "resultado_de_mis_acciones": balance,
                 "estrategia_de_puja_por_campana": estrategias,
                 "segmentos_de_intencion_7d": segmentos,
                 "alertas_de_caida": caidas,
