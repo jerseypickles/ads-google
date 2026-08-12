@@ -813,7 +813,62 @@ def _live_deep_data() -> dict:
         except Exception:
             caidas = []
 
+        # SEGMENTOS DE INTENCIÓN (7d). Sin esto sólo se ve la cuenta keyword a
+        # keyword y se optimiza en ese nivel, que es donde el dinero NO está.
+        # El 12-ago se descubrió a mano que el 47% del presupuesto iba a búsquedas
+        # genéricas a 0,3x mientras marca (24,9x) y tomates (8,4x) se quedaban sin
+        # aire — un patrón invisible en las tablas por keyword. Ahora es fijo.
+        segmentos = {}
+        try:
+            qs = """SELECT search_term_view.search_term, metrics.cost_micros,
+                           metrics.clicks, metrics.conversions, metrics.conversions_value
+                    FROM search_term_view WHERE segments.date DURING LAST_7_DAYS
+                      AND campaign.advertising_channel_type = 'SEARCH'
+                      AND metrics.cost_micros > 0"""
+            MARCA = ("jersey", "jerseypickles", "nj ")
+            acc = {"marca": [0.0, 0, 0.0, 0.0], "frio": [0.0, 0, 0.0, 0.0]}
+            ceros, todos = [], []
+            for b in ga.search_stream(customer_id=cid, query=qs):
+                for r in b.results:
+                    m = r.metrics
+                    c = m.cost_micros / 1e6
+                    t = r.search_term_view.search_term.lower()
+                    d = acc["marca" if any(x in t for x in MARCA) else "frio"]
+                    d[0] += c
+                    d[1] += m.clicks
+                    d[2] += m.conversions
+                    d[3] += m.conversions_value
+                    todos.append((t, c, m.conversions, m.conversions_value))
+                    if m.conversions == 0 and c >= 3:
+                        ceros.append((t, round(c, 2)))
+            tc = acc["marca"][0] + acc["frio"][0]
+            tv = acc["marca"][3] + acc["frio"][3]
+            if tc:
+                def _fila(d):
+                    return {"gasto": round(d[0], 2), "pct_presupuesto": round(d[0] / tc * 100),
+                            "conversiones": round(d[2], 1), "ingreso": round(d[3], 2),
+                            "roas": round(d[3] / d[0], 2) if d[0] else 0,
+                            "pct_ingreso": round(d[3] / tv * 100) if tv else 0,
+                            "tasa_conversion_pct": round(d[2] / d[1] * 100, 1) if d[1] else 0}
+                segmentos = {
+                    "marca_te_buscan_por_nombre": _fila(acc["marca"]),
+                    "frio_no_te_conocen": _fila(acc["frio"]),
+                    "terminos_sin_ninguna_venta": sorted(ceros, key=lambda x: -x[1])[:15],
+                    "mejores_terminos_frios": [
+                        (t, round(c, 2), round(v, 2), round(v / c, 1))
+                        for t, c, cv, v in sorted(todos, key=lambda x: -x[3])[:12]
+                        if not any(x in t for x in MARCA) and c > 0][:8],
+                    "_lectura": ("Comparar pct_presupuesto contra pct_ingreso: si un segmento "
+                                 "consume mucho presupuesto y aporta poco ingreso, el problema "
+                                 "no es una keyword suelta sino el reparto entre segmentos."),
+                }
+        except Exception as exc:
+            # Nunca en silencio: un bloque vacío se lee como "no hay problema"
+            print(f"[deep] segmentos_de_intencion falló: {exc}", flush=True)
+            segmentos = {}
+
         return {"keywords_7d": kws, "grupos_7d": grupos,
+                "segmentos_de_intencion_7d": segmentos,
                 "alertas_de_caida": caidas,
                 "productos_dormidos": dormidos[:40],
                 "vocabulario_categoria": [f"{k} ({v}/mes)" for k, v in (vocab or [])[:40]],
