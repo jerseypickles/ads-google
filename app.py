@@ -121,6 +121,7 @@ def _any_live() -> bool:
 
 LIVE_METRICS_AGE = 900           # con campañas activas: CSVs cada 15 min
 LIVE_REVIEW_AGE = 3 * 3600       # y Fable relee el rendimiento cada 3 horas
+REVIEW_FAIL_BACKOFF = 1800       # tras un fallo: 30 min, duplicando hasta la cadencia normal
 
 # --- métricas EN VIVO para campañas LIVE, con rango tipo Meta (hoy/ayer/7d/14d/30d) ---
 _live_cache: dict = {}  # range_key -> {"at": ts, "data": {...}}
@@ -567,11 +568,13 @@ def _run_review() -> None:
     try:
         review = fable.generate_campaign_review()
         _review_state["error"] = None
+        _review_state["fallos"] = 0
         _autopilot(review)      # Nivel 2: lo seguro se ejecuta solo (verificado)
         _maybe_expand(review)   # y el crecimiento lo decide su análisis, no fechas
     except Exception as exc:
         _review_state["error"] = str(exc)
-        print(f"[auditor] error: {exc}", flush=True)
+        _review_state["fallos"] = _review_state.get("fallos", 0) + 1
+        print(f"[auditor] error (fallo #{_review_state['fallos']}): {exc}", flush=True)
     finally:
         _review_state["running"] = False
 
@@ -584,6 +587,15 @@ def _kick_review(min_age: float = None) -> None:
         return
     if min_age is None:
         min_age = LIVE_REVIEW_AGE
+    # Una revisión que falla no escribe su marca de tiempo, así que el gate de
+    # cadencia la ve siempre vencida y la relanza en CADA sync (~23 min): un
+    # fallo persistente son ~60 llamadas/día en vez de 8. El 11-ago costó 18h
+    # de reintentos inútiles. Se espacia desde el primer fallo.
+    fallos = _review_state.get("fallos", 0)
+    if min_age > 0 and fallos:
+        espera = min(REVIEW_FAIL_BACKOFF * 2 ** (fallos - 1), LIVE_REVIEW_AGE)
+        if time.time() - _review_state.get("ultimo_intento", 0) < espera:
+            return
     if min_age > 0:
         last = (fable.CAMP_REVIEW_PATH.stat().st_mtime
                 if fable.CAMP_REVIEW_PATH.exists() else 0)
@@ -598,6 +610,7 @@ def _kick_review(min_age: float = None) -> None:
             return
     _review_state["running"] = True
     _review_state["error"] = None
+    _review_state["ultimo_intento"] = time.time()
     threading.Thread(target=_run_review, daemon=True).start()
 
 
