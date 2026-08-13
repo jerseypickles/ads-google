@@ -241,6 +241,36 @@ def grupo_7d_stats(campana: str, grupo: str):
         return None
 
 
+def producto_30d_stats(item_id: str):
+    """(clics, conversiones, valor) de un producto del feed en 30 días, o None.
+
+    Ventana LARGA a propósito: los productos de Shopping venden poco y caro, así
+    que 7 días pueden no contener ni una sola de sus ventas. El 13-ago se excluyó
+    uno que en 7 días parecía muerto y en 30 llevaba $124 de $11,89.
+    """
+    try:
+        client = _client()
+        ga = client.get_service("GoogleAdsService")
+        safe = (item_id or "").replace("'", "\\'")
+        # product_item_id va en SELECT aunque no se use: GAQL exige que todo campo
+        # filtrado en WHERE aparezca también en la proyección.
+        q = f"""SELECT segments.product_item_id, metrics.clicks, metrics.conversions,
+                       metrics.conversions_value
+                FROM shopping_performance_view
+                WHERE segments.date DURING LAST_30_DAYS
+                  AND segments.product_item_id = '{safe}'"""
+        cl = cv = val = 0.0
+        for b in ga.search_stream(customer_id=CUSTOMER_ID, query=q):
+            for r in b.results:
+                cl += r.metrics.clicks
+                cv += r.metrics.conversions
+                val += r.metrics.conversions_value
+        return int(cl), cv, val
+    except Exception as exc:
+        print(f"[actions] producto_30d_stats('{item_id}'): {exc}", flush=True)
+        return None
+
+
 def apply_action(a: dict) -> dict:
     tipo = a.get("tipo")
     campana = a.get("campana", "")
@@ -465,6 +495,25 @@ def apply_action(a: dict) -> dict:
             item = objetivo.lower()
             if not item.startswith("shopify_"):
                 return dict(ok=False, msg=f"objetivo debe ser el item_id exacto del feed: '{objetivo}'")
+
+            # UMBRAL ESTADÍSTICO (13-ago). Shopping convierte al 3,43%: con 25
+            # clics y 0 ventas hay un 41,8% de que sea puro azar, con 75 baja al
+            # 7,3%. Ese día se excluyó 'NY Style Full Sour QUART' por "23 clics
+            # sin conversión en 7 días" cuando en 30 días llevaba $124,16 de
+            # $11,89 (10,4x): la ventana corta no incluía su venta. Matar un
+            # producto exige evidencia, y 25 clics no lo son.
+            stats30 = producto_30d_stats(item)
+            if stats30:
+                clics30, conv30, valor30 = stats30
+                if conv30 > 0 and not a.get("forzar"):
+                    return dict(ok=False, msg=(
+                        f"BLOQUEADO: en 30 días ese producto hizo {conv30:.0f} conversión(es) "
+                        f"y ${valor30:.2f}. Mirar 7 días esconde a los que venden poco pero caro."))
+                if clics30 < 75 and not a.get("forzar"):
+                    return dict(ok=False, msg=(
+                        f"BLOQUEADO: sólo {clics30} clics en 30 días. Con la tasa real (3,4%) "
+                        f"eso deja un {((1-0.0343)**clics30)*100:.0f}% de probabilidad de que el "
+                        f"cero sea azar — no es evidencia para degradarlo."))
             tree = _listing_tree(ga, camp.id)
             if not tree:
                 return dict(ok=False, msg=f"'{campana}' no tiene árbol de productos (¿no es shopping?)")
