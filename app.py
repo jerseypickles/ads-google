@@ -845,6 +845,21 @@ def _auto_safe(a: dict) -> bool:
             return False
         cost, conv = stats
         return cost >= 25 and conv == 0  # sangría verificada con números reales
+    if tipo == "ajustar_puja_grupo":
+        # SOLO recortes, y sólo con la sangría confirmada por GAQL. Bajar la puja
+        # de un grupo que gastó ≥$25 sin una sola venta no necesita criterio: lo
+        # verifica el código. Subirla sí es una apuesta y la decide el dueño.
+        stats = fable_actions.grupo_7d_stats(a.get("campana", ""), a.get("objetivo", ""))
+        if not stats:
+            return False
+        cost, conv, puja_actual = stats
+        try:
+            nueva = float(a.get("valor"))
+        except (TypeError, ValueError):
+            return False
+        if nueva >= puja_actual:
+            return False               # subir jamás en automático
+        return cost >= 25 and conv == 0
     return False
 
 
