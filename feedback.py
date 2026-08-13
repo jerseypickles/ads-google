@@ -61,9 +61,15 @@ def _rango(desde, hasta):
     return f"segments.date BETWEEN '{desde.isoformat()}' AND '{hasta.isoformat()}'"
 
 
-def _metricas(ga, where: str) -> dict:
-    """Suma coste/clics/impresiones/conversiones/valor de una consulta cualquiera."""
-    q = f"""SELECT metrics.cost_micros, metrics.clicks, metrics.impressions,
+def _metricas(ga, where: str, extra: str = "") -> dict:
+    """Suma coste/clics/impresiones/conversiones/valor de una consulta cualquiera.
+
+    `extra` añade campos a la proyección: GAQL exige que todo campo filtrado en
+    WHERE aparezca también en SELECT, y sin esto los evaluadores de producto
+    fallaban en silencio (optimizar_titulo_feed llevaba 24 acciones y 0 juzgadas).
+    """
+    proj = f"{extra}, " if extra else ""
+    q = f"""SELECT {proj}metrics.cost_micros, metrics.clicks, metrics.impressions,
                    metrics.conversions, metrics.conversions_value {where}"""
     t = dict(coste=0.0, clics=0, impr=0, conv=0.0, valor=0.0)
     for b in ga.search_stream(customer_id=CUSTOMER_ID, query=q):
@@ -130,8 +136,8 @@ def _eval_titulo(ga, acc, ini, fin_antes, ini_desp, fin):
         return None
     base = (f"""FROM shopping_performance_view WHERE {{rango}}
                 AND segments.product_item_id LIKE '%{pid}%'""")
-    antes = _metricas(ga, base.format(rango=_rango(ini, fin_antes)))
-    desp = _metricas(ga, base.format(rango=_rango(ini_desp, fin)))
+    antes = _metricas(ga, base.format(rango=_rango(ini, fin_antes)), "segments.product_item_id")
+    desp = _metricas(ga, base.format(rango=_rango(ini_desp, fin)), "segments.product_item_id")
     if antes["impr"] < 50 and desp["impr"] < 50:
         return dict(veredicto="sin_efecto_medible", confianza="baja",
                     detalle="muy pocas impresiones para juzgar", antes=antes, despues=desp)
@@ -192,11 +198,104 @@ def _eval_presupuesto(ga, acc, ini, fin_antes, ini_desp, fin):
     return r
 
 
+def _eval_producto(ga, acc, ini, fin_antes, ini_desp, fin):
+    """Excluir o degradar un producto: ¿estábamos matando algo que vendía?
+
+    Mismo principio que las negativas: tras excluirlo deja de recibir tráfico, así
+    que el "después" no prueba nada. Lo que importa es qué producía ANTES — y en
+    30 días, no en 7: los productos de Shopping venden poco y caro, y una ventana
+    corta puede no contener ni una sola de sus ventas. El 13-ago se excluyó uno
+    que en 7 días parecía muerto y en 30 llevaba $124 de $11,89.
+    """
+    obj = (acc.get("objetivo") or "").lower()
+    if not obj.startswith("shopify_"):
+        return None
+    fin30 = fin_antes
+    ini30 = fin30 - timedelta(days=30)
+    antes = _metricas(ga, f"""FROM shopping_performance_view
+                              WHERE {_rango(ini30, fin30)}
+                                AND segments.product_item_id = '{_esc(obj)}'""",
+                      "segments.product_item_id")
+    degrada = acc["tipo"] == "excluir_producto_shopping" or "resto" in str(acc.get("valor", "")).lower()
+    if not degrada:
+        return dict(veredicto="sin_efecto_medible", confianza="baja",
+                    detalle="promoción de grupo, no degradación", antes=antes)
+    if antes["conv"] > 0:
+        return dict(veredicto="ERROR", confianza="alta",
+                    detalle=(f"se apagó un producto que SÍ vendía: {antes['conv']} conv y "
+                             f"${antes['valor']} en los 30 días previos ({antes['roas']}x)"),
+                    coste_del_error=antes["valor"], antes=antes)
+    if antes["clics"] < 75:
+        return dict(veredicto="prematuro", confianza="alta",
+                    detalle=(f"sólo {antes['clics']} clics en 30 días: con la tasa real (3,4%) "
+                             f"queda un {((1 - 0.0343) ** antes['clics']) * 100:.0f}% de que el "
+                             f"cero fuera azar. No había evidencia."),
+                    antes=antes)
+    return dict(veredicto="acierto", confianza="alta",
+                detalle=f"{antes['clics']} clics y 0 ventas en 30 días: evidencia suficiente",
+                ahorro_7d=round(antes["coste"] / 4, 2), antes=antes)
+
+
+def _eval_puja_grupo(ga, acc, ini, fin_antes, ini_desp, fin):
+    """Puja de grupo: el grupo contra sí mismo, antes vs después."""
+    campana, grupo = _esc(acc.get("campana", "")), _esc(acc.get("objetivo", ""))
+    if not grupo:
+        return None
+    base = (f"""FROM ad_group WHERE {{rango}} AND campaign.name = '{campana}'
+                AND ad_group.name = '{grupo}'""")
+    antes = _metricas(ga, base.format(rango=_rango(ini, fin_antes)))
+    desp = _metricas(ga, base.format(rango=_rango(ini_desp, fin)))
+    if antes["coste"] < MIN_GASTO:
+        return dict(veredicto="sin_efecto_medible", confianza="baja",
+                    detalle="sin gasto previo", antes=antes, despues=desp)
+    if antes["conv"] == 0 and desp["coste"] < antes["coste"]:
+        return dict(veredicto="acierto", confianza="alta",
+                    detalle=(f"recorte sobre un grupo sin ventas: gasto ${antes['coste']}→"
+                             f"${desp['coste']}"),
+                    ahorro_7d=round(antes["coste"] - desp["coste"], 2), antes=antes, despues=desp)
+    d_roas = round(desp["roas"] - antes["roas"], 2)
+    return dict(veredicto=("acierto" if d_roas >= 0 else "empeoro"), confianza="media",
+                detalle=f"ROAS {antes['roas']}x→{desp['roas']}x ({d_roas:+})",
+                antes=antes, despues=desp)
+
+
+def _eval_keyword_nueva(ga, acc, _ini, _fin_antes, ini_desp, fin):
+    """Keyword creada: sólo cuenta lo que hizo DESPUÉS — antes no existía."""
+    campana, kw = _esc(acc.get("campana", "")), _esc((acc.get("objetivo") or "").lower())
+    if not kw:
+        return None
+    desp = _metricas(ga, f"""FROM keyword_view WHERE {_rango(ini_desp, fin)}
+                             AND campaign.name = '{campana}'
+                             AND ad_group_criterion.keyword.text = '{kw}'""")
+    if desp["coste"] < MIN_GASTO:
+        return dict(veredicto="sin_efecto_medible", confianza="baja",
+                    detalle=f"apenas ha gastado (${desp['coste']}) desde que se creó", despues=desp)
+    if desp["conv"] > 0:
+        return dict(veredicto="acierto", confianza="alta",
+                    detalle=(f"{desp['conv']} conv y ${desp['valor']} con ${desp['coste']} "
+                             f"({desp['roas']}x)"), despues=desp)
+    return dict(veredicto=("empeoro" if desp["clics"] >= 75 else "neutro"), confianza="media",
+                detalle=f"${desp['coste']} y {desp['clics']} clics sin ninguna venta", despues=desp)
+
+
+# Estos sólo miran la ventana ANTERIOR (¿estábamos matando algo que vendía?), así
+# que no hay que esperar 7 días de "después" para juzgarlos. Un producto apagado
+# por error debe detectarse HOY, no la semana que viene: es justo la clase de
+# error que más dinero cuesta mientras nadie lo mira.
+INMEDIATOS = {"añadir_negativa", "pausar_keyword",
+              "excluir_producto_shopping", "mover_producto_grupo"}
+
 EVALUADORES = {
     "añadir_negativa": _eval_bloqueo,
     "pausar_keyword": _eval_bloqueo,
     "optimizar_titulo_feed": _eval_titulo,
     "ajustar_presupuesto": _eval_presupuesto,
+    # Los tres de abajo faltaban, y eran justo los que rompieron Shopping el
+    # 13-ago: el balance decía "100% de acierto" porque no los miraba.
+    "excluir_producto_shopping": _eval_producto,
+    "mover_producto_grupo": _eval_producto,
+    "ajustar_puja_grupo": _eval_puja_grupo,
+    "crear_keyword": _eval_keyword_nueva,
 }
 
 
@@ -223,8 +322,8 @@ def evaluar(force: bool = False) -> dict:
             cuando = datetime.strptime(str(e.get("ts"))[:16], "%Y-%m-%d %H:%M").date()
         except Exception:
             continue
-        # hace falta que hayan pasado los 7 días de after, y que no sea prehistórico
-        if (hoy - cuando).days < VENTANA or (hoy - cuando).days > 60:
+        espera = 0 if tipo in INMEDIATOS else VENTANA
+        if (hoy - cuando).days < espera or (hoy - cuando).days > 60:
             continue
         ini, fin_antes = cuando - timedelta(days=VENTANA), cuando - timedelta(days=1)
         ini_desp, fin = cuando + timedelta(days=1), cuando + timedelta(days=VENTANA)
@@ -262,7 +361,7 @@ def resumen(nuevos: list = None) -> dict:
             t["coste_de_errores"] += d.get("coste_del_error") or 0
             if len(t["ejemplos_malos"]) < 3:
                 t["ejemplos_malos"].append(f"{d.get('objetivo') or d.get('campana')}: {d.get('detalle')}")
-        elif v == "empeoro":
+        elif v in ("empeoro", "prematuro"):
             t["empeoro"] += 1
             if len(t["ejemplos_malos"]) < 3:
                 t["ejemplos_malos"].append(f"{d.get('objetivo') or d.get('campana')}: {d.get('detalle')}")
