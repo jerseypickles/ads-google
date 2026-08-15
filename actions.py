@@ -60,16 +60,19 @@ def _keyword_criterion(ga, campaign_id: int, text: str):
     return None
 
 
-def _active_keywords(ga, campaign_id: int) -> list[str]:
+def _active_keywords(ga, campaign_id: int, con_match: bool = False):
     # SOLO las habilitadas: una keyword pausada ya no trae tráfico, así que una
     # negativa que la contenga no bloquea nada nuestro. Si se contaran las pausadas,
     # el guardián impediría para siempre negativizar el término que acaba de pausar.
-    q = f"""SELECT ad_group_criterion.keyword.text FROM ad_group_criterion
+    q = f"""SELECT ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type
+            FROM ad_group_criterion
             WHERE campaign.id = {campaign_id} AND ad_group_criterion.type = 'KEYWORD'
               AND ad_group_criterion.negative = FALSE
               AND ad_group_criterion.status = 'ENABLED'"""
-    return [r.ad_group_criterion.keyword.text.lower()
-            for b in ga.search_stream(customer_id=CUSTOMER_ID, query=q) for r in b.results]
+    filas = [(r.ad_group_criterion.keyword.text.lower(),
+              r.ad_group_criterion.keyword.match_type.name)
+             for b in ga.search_stream(customer_id=CUSTOMER_ID, query=q) for r in b.results]
+    return filas if con_match else [t for t, _ in filas]
 
 
 def _ad_group_by_name(ga, campaign_id: int, name: str):
@@ -377,10 +380,20 @@ def apply_action(a: dict) -> dict:
                 match = "BROAD"
             # Por PALABRAS, no por subcadena: 'beet' está dentro de 'sweet pickles'
             # y con `neg in kw` se rechazaba una negativa perfectamente legítima.
+            # Y el MATCH importa: una negativa EXACT sobre una keyword PHRASE no
+            # la mata, sólo desvía el término literal a la campaña de control —
+            # es el flujo normal entre campañas propias. Sólo es suicidio si la
+            # negativa neutraliza a la keyword entera.
             pal_neg = set(neg.split())
-            for kw in _active_keywords(ga, camp.id):
-                if neg == kw or pal_neg <= set(kw.split()):
-                    return dict(ok=False, msg=f"BLOQUEADO: '{objetivo}' chocaría con la keyword activa '{kw}'")
+            for kw, kw_match in _active_keywords(ga, camp.id, con_match=True):
+                if match == "EXACT":
+                    choca = (neg == kw and kw_match == "EXACT")
+                elif match == "PHRASE":
+                    choca = neg in kw
+                else:
+                    choca = neg == kw or pal_neg <= set(kw.split())
+                if choca:
+                    return dict(ok=False, msg=f"BLOQUEADO: '{objetivo}' [{match}] anularía la keyword activa '{kw}' [{kw_match}]")
             # una BROAD que contiene una keyword de OTRA campaña propia mata su tráfico:
             # el flujo entre campañas se hace con negativas EXACT (lección del proyecto)
             if match == "BROAD":

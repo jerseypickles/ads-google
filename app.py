@@ -706,9 +706,27 @@ ACTIONS_LOG = BASE / "actions_log.json"
 
 
 def _load_actions_log() -> list:
-    if ACTIONS_LOG.exists():
-        return json.loads(ACTIONS_LOG.read_text(encoding="utf-8"))
-    return mongo.all_docs("actions", limit=200)  # espejo en la nube
+    """Historial COMPLETO: archivo local + Mongo, fusionados por `key`.
+
+    Antes devolvía sólo el archivo si existía. Como el Mac y la nube escriben
+    cada uno el suyo, divergían: el 14-ago el archivo local iba 30 acciones por
+    detrás y ahí estaban justo los escalados automáticos del cerebro. Analizar
+    (o medir en feedback.py) con medio historial da conclusiones falsas.
+    """
+    por_key: dict = {}
+    for origen in (mongo.all_docs("actions", limit=5000),
+                   json.loads(ACTIONS_LOG.read_text(encoding="utf-8"))
+                   if ACTIONS_LOG.exists() else []):
+        for e in origen:
+            k = e.get("key")
+            if not k:
+                continue
+            previo = por_key.get(k)
+            # ante duplicado gana el más reciente; un ok=True no se pisa con ok=False
+            if previo is None or (str(e.get("ts", "")) > str(previo.get("ts", ""))
+                                  and not (previo.get("ok") and not e.get("ok"))):
+                por_key[k] = e
+    return sorted(por_key.values(), key=lambda e: str(e.get("ts", "")))
 
 
 def _action_key(a: dict) -> str:
