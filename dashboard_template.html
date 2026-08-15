@@ -1113,10 +1113,20 @@ async function loadManager() {
     setTimeout(loadManager, 10000);
 }
 
+// Acciones que persiguen lo mismo — cortar el tráfico de un término. Si Fable
+// propuso negarlo y se resolvió pausando la keyword (lo correcto cuando el
+// término ES keyword propia: negarla la deja pagando sin poder servir), la
+// propuesta está atendida. Sin esto el panel sigue reclamando algo ya hecho.
+const FAMILIA_CORTE = ['añadir_negativa', 'pausar_keyword'];
+
 function isApplied(a) {
-  return (MGR.applied || []).some(e => e.ok && e.action &&
-    e.action.tipo === a.tipo && e.action.campana === a.campana &&
-    (e.action.objetivo || '') === (a.objetivo || '') && (e.action.valor || 0) === (a.valor || 0));
+  return (MGR.applied || []).some(e => {
+    if (!e.ok || !e.action) return false;
+    if (e.action.campana !== a.campana) return false;
+    if ((e.action.objetivo || '') !== (a.objetivo || '')) return false;
+    if (e.action.tipo === a.tipo) return (e.action.valor || 0) === (a.valor || 0);
+    return FAMILIA_CORTE.includes(a.tipo) && FAMILIA_CORTE.includes(e.action.tipo);
+  });
 }
 const ACT_LABEL = {
   pausar_keyword: '⏸ Pausar keyword', reactivar_keyword: '▶ Reactivar keyword',
