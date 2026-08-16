@@ -558,6 +558,7 @@ def _run_review() -> None:
     for etiqueta, paso in (
         ("audiencias", fable_actions.asegurar_audiencias_en_observacion),  # nunca restringir
         ("caídas", _detectar_caidas),      # un desplome de tráfico es un fallo, no tendencia
+        ("reconciliar estado", _reconciliar_estado),  # Google manda, no lo que recordamos
         ("negativas suicidas", _auditar_negativas_suicidas),  # nunca bloquearse a sí mismo
         ("balance de acciones", _evaluar_acciones),  # ¿sirvió lo que hicimos?
         ("autoscale", _autoscale),         # Nivel 3: presupuestos y pujas, con pruebas
@@ -821,13 +822,21 @@ def _sync_store_after_action(a: dict) -> None:
     """El gestor refleja lo que ya cambió en Google Ads (presupuesto, keywords pausadas)."""
     try:
         tipo = a.get("tipo")
-        if tipo not in ("ajustar_presupuesto", "pausar_keyword", "reactivar_keyword"):
+        if tipo not in ("ajustar_presupuesto", "pausar_keyword", "reactivar_keyword",
+                        "pausar_campana", "activar_campana"):
             return
         store = _load_camps()
         camp = next((c for c in store["campaigns"] if c["name"] == a.get("campana")), None)
         if not camp:
             return
-        if tipo == "ajustar_presupuesto":
+        if tipo in ("pausar_campana", "activar_campana"):
+            # Sin esto el gestor sigue diciendo enabled=True tras pausar en Google, y
+            # Fable lee ese estado falso: el 16-ago dedicó su alerta de máxima urgencia
+            # a denunciar como "quinta reincidencia" dos campañas que SÍ estaban
+            # pausadas. Un estado desincronizado no es un detalle cosmético — desvía
+            # la atención del auditor hacia un problema que no existe.
+            camp["enabled"] = (tipo == "activar_campana")
+        elif tipo == "ajustar_presupuesto":
             camp["daily_budget_usd"] = float(a.get("valor"))
         else:
             obj = fable_actions._clean_kw(a.get("objetivo") or "").lower()
@@ -959,6 +968,42 @@ def _detectar_caidas() -> list:
         return []
 
 
+def _reconciliar_estado() -> None:
+    """El gestor debe reflejar lo que Google dice, no lo que creemos recordar.
+
+    Google Ads es la fuente de verdad: el estado puede cambiar desde la interfaz,
+    desde otra máquina o por una pausa que no pasó por _apply_and_log. Cuando el
+    gestor y Google discrepan, Fable razona sobre una cuenta que no existe — el
+    16-ago gastó su alerta de urgencia ALTA denunciando como "quinta reincidencia"
+    dos campañas que llevaban un día correctamente pausadas.
+    """
+    from google.ads.googleads.client import GoogleAdsClient
+
+    client = GoogleAdsClient.load_from_storage(str(BASE / "google-ads.yaml"))
+    ga = client.get_service("GoogleAdsService")
+    real = {}
+    for b in ga.search_stream(customer_id="4888823590", query="""
+            SELECT campaign.name, campaign.status FROM campaign
+            WHERE campaign.status IN ('ENABLED', 'PAUSED')"""):
+        for r in b.results:
+            real[r.campaign.name] = (r.campaign.status.name == "ENABLED")
+
+    store = _load_camps()
+    cambios = []
+    for camp in store.get("campaigns", []):
+        if camp.get("status") != "LIVE":
+            continue          # una PROPUESTA aún no existe en Google
+        activo = real.get(camp.get("name"))
+        if activo is None or camp.get("enabled") is activo:
+            continue
+        cambios.append(f"{camp['name']}: gestor={camp.get('enabled')} → Google={activo}")
+        camp["enabled"] = activo
+    if cambios:
+        _save_camps(store)
+        for c in cambios:
+            print(f"[reconciliar] {c}", flush=True)
+
+
 def _evaluar_acciones() -> None:
     """Mide si las acciones ya ejecutadas sirvieron (ver feedback.py).
 
@@ -995,13 +1040,15 @@ def _auditar_negativas_suicidas() -> None:
     ga = client.get_service("GoogleAdsService")
     cid = "4888823590"
 
-    kws: dict[str, list[str]] = {}
+    kws: dict[str, list[tuple]] = {}
     for b in ga.search_stream(customer_id=cid, query="""
-            SELECT campaign.name, ad_group_criterion.keyword.text FROM keyword_view
+            SELECT campaign.name, ad_group_criterion.keyword.text,
+                   ad_group_criterion.keyword.match_type FROM keyword_view
             WHERE ad_group_criterion.status = 'ENABLED' AND campaign.status = 'ENABLED'"""):
         for r in b.results:
             kws.setdefault(r.campaign.name, []).append(
-                r.ad_group_criterion.keyword.text.lower())
+                (r.ad_group_criterion.keyword.text.lower(),
+                 r.ad_group_criterion.keyword.match_type.name))
 
     quitar = []
     for b in ga.search_stream(customer_id=cid, query="""
@@ -1015,12 +1062,17 @@ def _auditar_negativas_suicidas() -> None:
                 continue                      # Shopping no tiene keywords: nada que anular
             texto = r.campaign_criterion.keyword.text.lower()
             match = r.campaign_criterion.keyword.match_type.name
+            # El MATCH importa en los dos lados. Una negativa EXACT sobre una
+            # keyword PHRASE no la anula: desvía el término literal a la campaña
+            # de control y la frase sigue explorando variantes — es el flujo
+            # normal entre campañas propias. El 15-ago este auditor borró esa
+            # negativa legítima de 'pickled tomatoes' porque sólo comparaba textos.
             if match == "BROAD":               # bloquea si TODAS sus palabras están en la keyword
-                choca = [k for k in mias if set(texto.split()) <= set(k.split())]
+                choca = [k for k, _ in mias if set(texto.split()) <= set(k.split())]
             elif match == "PHRASE":
-                choca = [k for k in mias if texto in k]
+                choca = [k for k, _ in mias if texto in k]
             else:
-                choca = [k for k in mias if texto == k]
+                choca = [k for k, km in mias if texto == k and km == "EXACT"]
             if choca:
                 quitar.append((r.campaign.name, texto, match,
                                r.campaign_criterion.resource_name, choca))
