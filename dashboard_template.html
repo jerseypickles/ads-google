@@ -1577,6 +1577,33 @@ function drawerGroup(cid, gid) {
       <p class="plan-meta" style="margin-top:10px">En Shopping el anuncio lo arma Google con la foto, título y precio del feed — no hay RSA ni keywords; el control es por productos, pujas y negativas.</p>`);
     return;
   }
+  if (c.type === 'PERFORMANCE_MAX') {
+    // PMax no tiene keywords ni un anuncio fijo: Google combina estos textos,
+    // imágenes y vídeos según dónde aparezca. Mostrar aquí la plantilla de
+    // búsqueda dejaba un "KEYWORDS" vacío y una vista previa que no existe.
+    const im = g.imagenes || [], vi = g.videos || [];
+    const ancho = tp => tp === 'MARKETING_IMAGE' ? 150 : (tp === 'PORTRAIT_MARKETING_IMAGE' ? 74 : 92);
+    openDrawer(`
+      <div class="camp-role" style="color:var(--shop-ink)">🅿️ PMAX · ${esc(c.name)}</div><h2>${esc(g.name)}</h2>
+      <div class="d-sub">${(g.headlines || []).length} titulares · ${(g.descriptions || []).length} descripciones · ${im.length} imágenes · ${vi.length} vídeos</div>
+      <p class="note" style="max-width:none">Destino: <a href="${esc(g.final_url || '')}" target="_blank" rel="noopener">${esc(g.final_url || '')}</a> · Fuerza del anuncio: <b>${esc(g.ad_strength || '—')}</b></p>
+      ${im.length ? `<div class="d-section"><h4>Imágenes (${im.length})</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+        ${im.map(i => `<figure style="margin:0;text-align:center">
+          <img src="${esc(i.url)}" loading="lazy" style="width:${ancho(i.tipo)}px;height:92px;object-fit:cover;border-radius:9px;border:1px solid var(--hairline)">
+          <figcaption style="font-size:9.5px;color:var(--muted);margin-top:3px">${i.w}×${i.h}</figcaption></figure>`).join('')}
+        </div></div>` : ''}
+      ${vi.length ? `<div class="d-section"><h4>Vídeos (${vi.length})</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+        ${vi.map(v => `<a href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener" title="${esc(v.titulo || '')}">
+          <img src="https://i.ytimg.com/vi/${esc(v.id)}/mqdefault.jpg" loading="lazy" style="width:150px;height:84px;object-fit:cover;border-radius:9px;border:1px solid var(--hairline)"></a>`).join('')}
+        </div></div>` : '<p class="plan-meta">Sin vídeos: Google generará uno automáticamente con las imágenes fijas.</p>'}
+      <div class="d-section"><h4>Titulares · máx. 30 car.</h4><div class="hl-list">${(g.headlines || []).map(x => metered(x, 30)).join('')}</div></div>
+      ${(g.long_headlines || []).length ? `<div class="d-section"><h4>Titulares largos · máx. 90 car.</h4><div class="hl-list">${g.long_headlines.map(x => metered(x, 90)).join('')}</div></div>` : ''}
+      <div class="d-section"><h4>Descripciones · máx. 90 car.</h4><div class="hl-list">${(g.descriptions || []).map(x => metered(x, 90)).join('')}</div></div>
+      <p class="plan-meta" style="margin-top:10px">PMax no tiene keywords ni un anuncio fijo: Google combina estos recursos según el canal (Búsqueda, YouTube, Discover, Gmail, Display). Tampoco expone términos de búsqueda. La marca está excluida a propósito para que no canibalice a Discovery.</p>`);
+    return;
+  }
   openDrawer(`
     <div class="camp-role">${esc(c.name)}</div><h2>${esc(g.name)}</h2>
     <div class="d-sub">${(g.keywords || []).length} keywords · ${(g.headlines || []).length} titulares · ${(g.descriptions || []).length} descripciones</div>
