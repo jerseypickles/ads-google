@@ -983,21 +983,49 @@ def _reconciliar_estado() -> None:
     ga = client.get_service("GoogleAdsService")
     real = {}
     for b in ga.search_stream(customer_id="4888823590", query="""
-            SELECT campaign.name, campaign.status FROM campaign
-            WHERE campaign.status IN ('ENABLED', 'PAUSED')"""):
+            SELECT campaign.id, campaign.name, campaign.status,
+                   campaign.advertising_channel_type, campaign_budget.amount_micros
+            FROM campaign WHERE campaign.status IN ('ENABLED', 'PAUSED')"""):
         for r in b.results:
-            real[r.campaign.name] = (r.campaign.status.name == "ENABLED")
+            real[r.campaign.name] = dict(
+                id=r.campaign.id,
+                enabled=(r.campaign.status.name == "ENABLED"),
+                tipo=r.campaign.advertising_channel_type.name,
+                budget=r.campaign_budget.amount_micros / 1e6)
 
     store = _load_camps()
     cambios = []
     for camp in store.get("campaigns", []):
         if camp.get("status") != "LIVE":
             continue          # una PROPUESTA aún no existe en Google
-        activo = real.get(camp.get("name"))
-        if activo is None or camp.get("enabled") is activo:
+        info = real.get(camp.get("name"))
+        if info is None or camp.get("enabled") is info["enabled"]:
             continue
-        cambios.append(f"{camp['name']}: gestor={camp.get('enabled')} → Google={activo}")
-        camp["enabled"] = activo
+        cambios.append(f"{camp['name']}: gestor={camp.get('enabled')} → Google={info['enabled']}")
+        camp["enabled"] = info["enabled"]
+
+    # IMPORTAR lo que existe en Google y falta aquí. Sin esto, una campaña creada
+    # fuera del gestor —por API, o a mano en la interfaz de Google— es invisible
+    # en el panel: el 17-ago la PMax recién creada no aparecía por ningún lado.
+    conocidas = {c.get("name") for c in store.get("campaigns", [])}
+    for nombre, info in real.items():
+        if nombre in conocidas or not nombre.startswith("JP"):
+            continue
+        store["campaigns"].append({
+            "name": nombre,
+            "status": "LIVE",
+            "enabled": info["enabled"],
+            "type": info["tipo"],
+            "daily_budget_usd": info["budget"],
+            "google": {"campaign_id": info["id"]},
+            "objective": "Importada desde Google Ads: se creó fuera del gestor.",
+            "match_role": info["tipo"],
+            "ad_groups": [],
+            "cross_negatives": [],
+            "pushed_at": time.strftime("%Y-%m-%d %H:%M"),
+        })
+        cambios.append(f"IMPORTADA desde Google: {nombre} ({info['tipo']}, ${info['budget']:.0f}/día)")
+
     if cambios:
         _save_camps(store)
         for c in cambios:
