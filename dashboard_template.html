@@ -1522,6 +1522,20 @@ function drawerCampaign(c) {
         ${(g.long_headlines || []).map(h => `<div class="d-list-row"><span>${esc(h)}</span></div>`).join('')}</div>
         <div style="margin-top:.5rem"><b style="font-size:11px;color:var(--muted)">DESCRIPCIONES (${(g.descriptions || []).length})</b>
         ${(g.descriptions || []).map(h => `<div class="d-list-row"><span>${esc(h)}</span></div>`).join('')}</div>
+        <div style="margin-top:.7rem"><b style="font-size:11px;color:var(--muted)">IMÁGENES (${(g.imagenes || []).length})</b>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:.4rem">
+          ${(g.imagenes || []).map(i => `<figure style="margin:0;text-align:center">
+             <img src="${esc(i.url)}" alt="${esc(i.tipo)}" loading="lazy"
+                  style="width:${i.tipo === 'MARKETING_IMAGE' ? '132' : (i.tipo === 'PORTRAIT_MARKETING_IMAGE' ? '68' : '84')}px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--hairline)">
+             <figcaption style="font-size:9px;color:var(--muted);margin-top:2px">${i.w}×${i.h}</figcaption></figure>`).join('')}
+          </div>
+        </div>
+        ${(g.videos || []).length ? `<div style="margin-top:.7rem"><b style="font-size:11px;color:var(--muted)">VÍDEOS (${g.videos.length})</b>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:.4rem">
+          ${g.videos.map(v => `<a href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener" title="${esc(v.titulo)}">
+             <img src="https://i.ytimg.com/vi/${esc(v.id)}/mqdefault.jpg" loading="lazy"
+                  style="width:132px;height:74px;object-fit:cover;border-radius:8px;border:1px solid var(--hairline)"></a>`).join('')}
+          </div></div>` : `<p class="plan-meta" style="margin:.6rem 0 0">Sin vídeos: Google generará uno automáticamente con estas imágenes.</p>`}
       </div>`).join('') : ''}
     ${(c.ad_groups || []).map(g => `<div class="d-list-row" data-open-camp="${c.id}" data-open-group="${g.id}"><span><b>${esc(g.name)}</b></span><span style="color:var(--muted)">${c.type === 'PERFORMANCE_MAX' ? ((g.headlines || []).length + ' titulares · ' + (g.descriptions || []).length + ' descripciones · ' + (g.n_imagenes || 0) + ' imágenes') : (c.type === 'SHOPPING' ? esc(g.products || '') + ' · CPC $' + (g.cpc_bid_usd ?? '—') : (g.keywords || []).length + ' kws · 1 RSA')} ›</span></div>`).join('')}</div>
     ${c.cross_negatives && c.cross_negatives.length ? `<div class="d-section"><h4>Negativas de flujo (${c.cross_negatives.length})</h4><div class="neg-chips">${c.cross_negatives.map(n => `<span class="neg">${esc(n)}</span>`).join('')}</div></div>` : ''}

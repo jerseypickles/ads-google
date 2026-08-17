@@ -1043,8 +1043,11 @@ def _reconciliar_estado() -> None:
         for b in ga.search_stream(customer_id="4888823590", query="""
                 SELECT campaign.name, asset_group.id, asset_group.name,
                        asset_group.final_urls, asset_group.ad_strength,
-                       asset_group_asset.field_type, asset.text_asset.text,
-                       asset.image_asset.full_size.url
+                       asset_group_asset.field_type, asset.text_asset.text, asset.name,
+                       asset.image_asset.full_size.url,
+                       asset.image_asset.full_size.width_pixels,
+                       asset.image_asset.full_size.height_pixels,
+                       asset.youtube_video_asset.youtube_video_id
                 FROM asset_group_asset
                 WHERE campaign.advertising_channel_type = 'PERFORMANCE_MAX'
                   AND campaign.status IN ('ENABLED', 'PAUSED')"""):
@@ -1053,16 +1056,28 @@ def _reconciliar_estado() -> None:
                     "id": f"ag{r.asset_group.id}", "name": r.asset_group.name,
                     "final_url": (list(r.asset_group.final_urls) or [""])[0],
                     "ad_strength": r.asset_group.ad_strength.name,
-                    "headlines": [], "long_headlines": [], "descriptions": [], "n_imagenes": 0})
+                    "headlines": [], "long_headlines": [], "descriptions": [],
+                    "imagenes": [], "videos": [], "n_imagenes": 0})
                 campo = r.asset_group_asset.field_type.name
                 txt = r.asset.text_asset.text
+                url = r.asset.image_asset.full_size.url
+                vid = r.asset.youtube_video_asset.youtube_video_id
                 if txt:
                     destino = {"HEADLINE": "headlines", "LONG_HEADLINE": "long_headlines",
                                "DESCRIPTION": "descriptions"}.get(campo)
                     if destino and txt not in g[destino]:
                         g[destino].append(txt)
-                elif r.asset.image_asset.full_size.url:
-                    g["n_imagenes"] += 1
+                elif url:
+                    # se guarda la URL, no sólo el número: el dueño quiere VER con
+                    # qué creatividades está compitiendo, no cuántas hay.
+                    if not any(i["url"] == url for i in g["imagenes"]):
+                        g["imagenes"].append({"url": url, "tipo": campo,
+                                              "w": r.asset.image_asset.full_size.width_pixels,
+                                              "h": r.asset.image_asset.full_size.height_pixels})
+                        g["n_imagenes"] += 1
+                elif vid:
+                    if not any(v["id"] == vid for v in g["videos"]):
+                        g["videos"].append({"id": vid, "titulo": r.asset.name or ""})
         for camp in pmax:
             grupos = list((por_camp.get(camp["name"]) or {}).values())
             if grupos and camp.get("ad_groups") != grupos:
