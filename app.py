@@ -1026,6 +1026,45 @@ def _reconciliar_estado() -> None:
         })
         cambios.append(f"IMPORTADA desde Google: {nombre} ({info['tipo']}, ${info['budget']:.0f}/día)")
 
+    # PMax no tiene grupos de anuncios ni keywords: tiene GRUPOS DE RECURSOS.
+    # Sin traerlos, el panel muestra la campaña vacía por dentro y el dueño no
+    # puede ver con qué está compitiendo (17-ago: "solo se ve, pero no se ve
+    # cómo está regulada dentro"). Se mapean a `ad_groups` para que el panel los
+    # dibuje con la misma estructura que el resto.
+    pmax = [c for c in store.get("campaigns", []) if c.get("type") == "PERFORMANCE_MAX"]
+    if pmax:
+        ids = {c["name"]: c.get("google", {}).get("campaign_id") for c in pmax}
+        por_camp: dict = {}
+        for b in ga.search_stream(customer_id="4888823590", query="""
+                SELECT campaign.name, asset_group.id, asset_group.name,
+                       asset_group.final_urls, asset_group.ad_strength,
+                       asset_group_asset.field_type, asset.text_asset.text,
+                       asset.image_asset.full_size.url
+                FROM asset_group_asset
+                WHERE campaign.advertising_channel_type = 'PERFORMANCE_MAX'
+                  AND campaign.status IN ('ENABLED', 'PAUSED')"""):
+            for r in b.results:
+                g = por_camp.setdefault(r.campaign.name, {}).setdefault(r.asset_group.id, {
+                    "id": f"ag{r.asset_group.id}", "name": r.asset_group.name,
+                    "final_url": (list(r.asset_group.final_urls) or [""])[0],
+                    "ad_strength": r.asset_group.ad_strength.name,
+                    "headlines": [], "long_headlines": [], "descriptions": [], "n_imagenes": 0})
+                campo = r.asset_group_asset.field_type.name
+                txt = r.asset.text_asset.text
+                if txt:
+                    destino = {"HEADLINE": "headlines", "LONG_HEADLINE": "long_headlines",
+                               "DESCRIPTION": "descriptions"}.get(campo)
+                    if destino and txt not in g[destino]:
+                        g[destino].append(txt)
+                elif r.asset.image_asset.full_size.url:
+                    g["n_imagenes"] += 1
+        for camp in pmax:
+            grupos = list((por_camp.get(camp["name"]) or {}).values())
+            if grupos and camp.get("ad_groups") != grupos:
+                camp["ad_groups"] = grupos
+                camp["products"] = "todos los del feed"
+                cambios.append(f"{camp['name']}: {len(grupos)} grupo(s) de recursos sincronizados")
+
     if cambios:
         _save_camps(store)
         for c in cambios:

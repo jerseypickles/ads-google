@@ -1324,7 +1324,7 @@ function renderManager() {
       const m = g.metrics || {};
       html += `<tr data-camp="${c.id}" data-group="${g.id}">
         <td><b>${esc(g.name)}</b></td><td>${esc(c.name).replace('JP | Search | ', '')}</td>
-        <td class="num">${c.type === 'SHOPPING' ? esc(g.products || '—') : (g.keywords || []).filter(k => !k.paused).length}</td>
+        <td class="num">${c.type === 'PERFORMANCE_MAX' ? ((g.headlines || []).length + ' textos · ' + (g.n_imagenes || 0) + ' img') : (c.type === 'SHOPPING' ? esc(g.products || '—') : (g.keywords || []).filter(k => !k.paused).length)}</td>
         <td class="num">${mN(m.impr)}</td><td class="num">${mN(m.clicks)}</td><td class="num">${mPct(m.ctr)}</td>
         <td class="num">${m$(m.cost)}</td><td class="num">${mN(m.conv)}</td>
         <td class="num">${m$(m.value)}</td><td class="num">${mRoas(m)}</td>
@@ -1505,7 +1505,20 @@ function drawerCampaign(c) {
       <span class="health-chip health-${h.salud}">${h.salud === 'ok' ? '✓ ok' : h.salud}</span>
       <ul style="margin:8px 0 0;padding-left:18px;font-size:13px">${(h.notas || []).map(n => `<li style="margin-bottom:4px">${esc(n)}</li>`).join('')}</ul></div>` : ''}
     <div class="d-section"><h4>Grupos de anuncios (${(c.ad_groups || []).length})</h4>
-      ${(c.ad_groups || []).map(g => `<div class="d-list-row" data-open-camp="${c.id}" data-open-group="${g.id}"><span><b>${esc(g.name)}</b></span><span style="color:var(--muted)">${c.type === 'SHOPPING' ? esc(g.products || '') + ' · CPC $' + (g.cpc_bid_usd ?? '—') : (g.keywords || []).length + ' kws · 1 RSA'} ›</span></div>`).join('')}</div>
+      ${c.type === 'PERFORMANCE_MAX' ? (c.ad_groups || []).map(g => `
+      <div class="d-section"><h4>🅿️ Grupo de recursos · ${esc(g.name)}</h4>
+        <p class="plan-meta" style="margin:.2rem 0 .6rem">Destino: <a href="${esc(g.final_url || '')}" target="_blank" rel="noopener">${esc(g.final_url || '')}</a>
+        · Fuerza del anuncio: <b>${esc(g.ad_strength || '—')}</b> · ${g.n_imagenes || 0} imágenes
+        · Productos: ${esc(c.products || 'todos los del feed')}</p>
+        <p class="plan-meta" style="margin:.2rem 0"><b>PMax no expone términos de búsqueda ni keywords</b> — Google decide dónde aparecer con estos textos e imágenes. La marca está excluida a propósito para que no canibalice a Discovery.</p>
+        <div style="margin-top:.5rem"><b style="font-size:11px;color:var(--muted)">TITULARES (${(g.headlines || []).length})</b>
+        ${(g.headlines || []).map(h => `<div class="d-list-row"><span>${esc(h)}</span></div>`).join('')}</div>
+        <div style="margin-top:.5rem"><b style="font-size:11px;color:var(--muted)">TITULARES LARGOS (${(g.long_headlines || []).length})</b>
+        ${(g.long_headlines || []).map(h => `<div class="d-list-row"><span>${esc(h)}</span></div>`).join('')}</div>
+        <div style="margin-top:.5rem"><b style="font-size:11px;color:var(--muted)">DESCRIPCIONES (${(g.descriptions || []).length})</b>
+        ${(g.descriptions || []).map(h => `<div class="d-list-row"><span>${esc(h)}</span></div>`).join('')}</div>
+      </div>`).join('') : ''}
+    ${(c.ad_groups || []).map(g => `<div class="d-list-row" data-open-camp="${c.id}" data-open-group="${g.id}"><span><b>${esc(g.name)}</b></span><span style="color:var(--muted)">${c.type === 'PERFORMANCE_MAX' ? ((g.headlines || []).length + ' titulares · ' + (g.descriptions || []).length + ' descripciones · ' + (g.n_imagenes || 0) + ' imágenes') : (c.type === 'SHOPPING' ? esc(g.products || '') + ' · CPC $' + (g.cpc_bid_usd ?? '—') : (g.keywords || []).length + ' kws · 1 RSA')} ›</span></div>`).join('')}</div>
     ${c.cross_negatives && c.cross_negatives.length ? `<div class="d-section"><h4>Negativas de flujo (${c.cross_negatives.length})</h4><div class="neg-chips">${c.cross_negatives.map(n => `<span class="neg">${esc(n)}</span>`).join('')}</div></div>` : ''}
     ${(() => {
       const pend = pendingFor(c.name);
