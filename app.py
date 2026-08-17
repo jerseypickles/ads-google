@@ -1012,6 +1012,11 @@ def _reconciliar_estado() -> None:
         if nombre in conocidas or not nombre.startswith("JP"):
             continue
         store["campaigns"].append({
+            # id ESTABLE derivado del de Google: el panel lo usa para el switch,
+            # para abrir la fila y para filtrar. Sin él, al pinchar la campaña se
+            # guarda un filtro "undefined" que deja la vista de grupos en cero
+            # y sin chip que lo explique (17-ago).
+            "id": f"g{info['id']}",
             "name": nombre,
             "status": "LIVE",
             "enabled": info["enabled"],

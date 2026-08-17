@@ -1262,6 +1262,11 @@ function renderManager() {
   const cs = MGR.store.campaigns || [];
   const allGroups = [];
   cs.forEach(c => (c.ad_groups || []).forEach(g => allGroups.push({ c, g })));
+  // Un filtro que apunta a algo inexistente lo esconde TODO y encima no dibuja
+  // su chip (porque no encuentra el objeto), así que el dueño ve ceros sin causa
+  // visible. Si no casa con nada, se descarta.
+  if (MGR.camp && !cs.some(c => c.id === MGR.camp)) { MGR.camp = null; MGR.group = null; }
+  if (MGR.group && !allGroups.some(x => x.g.id === MGR.group)) MGR.group = null;
   const fGroups = allGroups.filter(x => !MGR.camp || x.c.id === MGR.camp);
   const fAds = fGroups.filter(x => !MGR.group || x.g.id === MGR.group);
 
