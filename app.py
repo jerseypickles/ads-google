@@ -745,6 +745,122 @@ def actions_log():
     return jsonify(applied=_load_actions_log())
 
 
+def _yt_id(txt: str) -> str:
+    """Saca el id de YouTube de una URL pegada, o devuelve el id si ya lo es."""
+    t = (txt or "").strip()
+    m = re.search(r"(?:v=|youtu\.be/|/shorts/|/embed/)([A-Za-z0-9_-]{11})", t)
+    if m:
+        return m.group(1)
+    return t if re.fullmatch(r"[A-Za-z0-9_-]{11}", t) else ""
+
+
+@app.route("/api/pmax/videos")
+def pmax_videos():
+    """Vídeos ya enlazados a un grupo de recursos + los disponibles en la cuenta."""
+    gid = (request.args.get("group") or "").replace("ag", "")
+    if not gid.isdigit():
+        return jsonify(ok=False, msg="grupo inválido"), 400
+    from google.ads.googleads.client import GoogleAdsClient
+
+    ga = GoogleAdsClient.load_from_storage(str(BASE / "google-ads.yaml")).get_service(
+        "GoogleAdsService")
+    enlazados, disponibles = [], []
+    for b in ga.search_stream(customer_id="4888823590", query=f"""
+            SELECT asset.youtube_video_asset.youtube_video_id,
+                   asset.youtube_video_asset.youtube_video_title, asset.resource_name
+            FROM asset_group_asset
+            WHERE asset_group.id = {gid}
+              AND asset_group_asset.field_type = 'YOUTUBE_VIDEO'"""):
+        for r in b.results:
+            enlazados.append({"id": r.asset.youtube_video_asset.youtube_video_id,
+                              "titulo": r.asset.youtube_video_asset.youtube_video_title,
+                              "asset": r.asset.resource_name})
+    ya = {v["id"] for v in enlazados}
+    for b in ga.search_stream(customer_id="4888823590", query="""
+            SELECT asset.youtube_video_asset.youtube_video_id,
+                   asset.youtube_video_asset.youtube_video_title, asset.resource_name
+            FROM asset WHERE asset.type = 'YOUTUBE_VIDEO'"""):
+        for r in b.results:
+            v = r.asset.youtube_video_asset.youtube_video_id
+            if v and v not in ya and not any(d["id"] == v for d in disponibles):
+                disponibles.append({"id": v,
+                                    "titulo": r.asset.youtube_video_asset.youtube_video_title,
+                                    "asset": r.asset.resource_name})
+    return jsonify(ok=True, enlazados=enlazados, disponibles=disponibles)
+
+
+@app.route("/api/pmax/videos", methods=["POST"])
+def pmax_videos_edit():
+    """Añade o quita vídeos de un grupo de recursos.
+
+    `añadir` acepta ids de YouTube o URLs pegadas: si el vídeo aún no existe como
+    asset en la cuenta se crea al vuelo, para poder subir material nuevo del canal
+    sin salir del panel.
+    """
+    from google.ads.googleads.client import GoogleAdsClient
+    from google.ads.googleads.errors import GoogleAdsException
+
+    body = request.get_json(silent=True) or {}
+    gid = str(body.get("group") or "").replace("ag", "")
+    if not gid.isdigit():
+        return jsonify(ok=False, msg="grupo inválido"), 400
+    client = GoogleAdsClient.load_from_storage(str(BASE / "google-ads.yaml"))
+    cid = "4888823590"
+    ga = client.get_service("GoogleAdsService")
+    ag_rn = f"customers/{cid}/assetGroups/{gid}"
+    hechos = []
+
+    # QUITAR: se borra el vínculo con el grupo, no el asset (sigue reutilizable)
+    for rn in body.get("quitar") or []:
+        op = client.get_type("AssetGroupAssetOperation")
+        op.remove = rn
+        try:
+            client.get_service("AssetGroupAssetService").mutate_asset_group_assets(
+                customer_id=cid, operations=[op])
+            hechos.append("quitado 1 vídeo")
+        except GoogleAdsException as ex:
+            return jsonify(ok=False, msg=ex.failure.errors[0].message[:180]), 400
+
+    pendientes = [_yt_id(x) for x in (body.get("añadir") or [])]
+    pendientes = [x for x in pendientes if x]
+    if pendientes:
+        existentes = {}
+        for b in ga.search_stream(customer_id=cid, query="""
+                SELECT asset.resource_name, asset.youtube_video_asset.youtube_video_id
+                FROM asset WHERE asset.type = 'YOUTUBE_VIDEO'"""):
+            for r in b.results:
+                existentes.setdefault(r.asset.youtube_video_asset.youtube_video_id,
+                                      r.asset.resource_name)
+        for vid in pendientes:
+            rn = existentes.get(vid)
+            if not rn:                      # vídeo nuevo del canal: se crea el asset
+                op = client.get_type("AssetOperation")
+                op.create.youtube_video_asset.youtube_video_id = vid
+                op.create.name = f"YT {vid}"
+                try:
+                    rn = client.get_service("AssetService").mutate_assets(
+                        customer_id=cid, operations=[op]).results[0].resource_name
+                    hechos.append(f"creado asset para {vid}")
+                except GoogleAdsException as ex:
+                    return jsonify(ok=False, msg=f"{vid}: {ex.failure.errors[0].message[:150]}"), 400
+            op = client.get_type("AssetGroupAssetOperation")
+            op.create.asset_group = ag_rn
+            op.create.asset = rn
+            op.create.field_type = client.enums.AssetFieldTypeEnum.YOUTUBE_VIDEO
+            try:
+                client.get_service("AssetGroupAssetService").mutate_asset_group_assets(
+                    customer_id=cid, operations=[op])
+                hechos.append(f"añadido {vid}")
+            except GoogleAdsException as ex:
+                return jsonify(ok=False, msg=f"{vid}: {ex.failure.errors[0].message[:150]}"), 400
+
+    try:
+        _reconciliar_estado()          # que el gestor refleje el cambio al instante
+    except Exception as exc:
+        print(f"[pmax-videos] reconciliar: {exc}", flush=True)
+    return jsonify(ok=True, msg=" · ".join(hechos) or "sin cambios")
+
+
 @app.route("/api/actions/apply", methods=["POST"])
 def actions_apply():
     a = (request.get_json(silent=True) or {}).get("action") or {}

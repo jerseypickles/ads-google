@@ -1558,6 +1558,59 @@ function drawerCampaign(c) {
   `);
 }
 
+// ── Gestor de vídeos de PMax ────────────────────────────────────────────────
+// Google no permite editar un vídeo ya enlazado: se quita el vínculo y se pone
+// otro. El asset sobrevive, así que quitar aquí no destruye nada reutilizable.
+async function cargarVideos(gid) {
+  const box = document.getElementById('yt-box');
+  if (!box) return;
+  try {
+    const d = await (await fetch('/api/pmax/videos?group=' + encodeURIComponent(gid))).json();
+    if (!d.ok) { box.innerHTML = `<p class="plan-meta">No se pudieron cargar: ${esc(d.msg || '')}</p>`; return; }
+    const tarjeta = (v, enlazado) => `
+      <figure style="margin:0;width:132px;text-align:center">
+        <img src="https://i.ytimg.com/vi/${esc(v.id)}/mqdefault.jpg" loading="lazy"
+             style="width:132px;height:74px;object-fit:cover;border-radius:8px;border:2px solid ${enlazado ? 'var(--shop-ink)' : 'var(--hairline)'}">
+        <figcaption style="font-size:9.5px;color:var(--muted);margin:3px 0;line-height:1.25;height:24px;overflow:hidden">${esc((v.titulo || v.id).slice(0, 42))}</figcaption>
+        <button class="row-view" data-yt="${enlazado ? 'del' : 'add'}" data-group="${esc(gid)}"
+                data-val="${esc(enlazado ? v.asset : v.id)}" style="font-size:10px;padding:2px 8px">${enlazado ? '✕ quitar' : '+ añadir'}</button>
+      </figure>`;
+    box.innerHTML = `
+      <b style="font-size:11px;color:var(--muted)">EN ESTE GRUPO (${d.enlazados.length})</b>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin:.4rem 0 .8rem">${d.enlazados.map(v => tarjeta(v, true)).join('') || '<p class="plan-meta">Ninguno todavía.</p>'}</div>
+      <b style="font-size:11px;color:var(--muted)">DISPONIBLES EN LA CUENTA (${d.disponibles.length})</b>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:.4rem;max-height:320px;overflow:auto">${d.disponibles.map(v => tarjeta(v, false)).join('')}</div>`;
+  } catch (e) { box.innerHTML = '<p class="plan-meta">Error de red al cargar los vídeos.</p>'; }
+}
+
+async function editarVideos(gid, cuerpo, boton) {
+  const txt = boton ? boton.textContent : '';
+  if (boton) { boton.disabled = true; boton.textContent = '…'; }
+  try {
+    const r = await fetch('/api/pmax/videos', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(Object.assign({group: gid}, cuerpo))});
+    const d = await r.json();
+    if (!d.ok) alert('No se pudo: ' + (d.msg || 'error'));
+    await cargarVideos(gid);
+    loadManager();
+  } catch (e) { alert('Error de red'); }
+  finally { if (boton) { boton.disabled = false; boton.textContent = txt; } }
+}
+
+document.addEventListener('click', async e => {
+  const add = e.target.closest('#yt-add');
+  if (add) {
+    const inp = document.getElementById('yt-url');
+    if (inp && inp.value.trim()) { await editarVideos(add.dataset.group, {'añadir': [inp.value.trim()]}, add); inp.value = ''; }
+    return;
+  }
+  const b = e.target.closest('[data-yt]');
+  if (!b) return;
+  const cuerpo = b.dataset.yt === 'add' ? {'añadir': [b.dataset.val]} : {quitar: [b.dataset.val]};
+  await editarVideos(b.dataset.group, cuerpo, b);
+});
+
 function drawerGroup(cid, gid) {
   const x = findGroup(cid, gid);
   if (!x || !x.g) return;
@@ -1601,7 +1654,16 @@ function drawerGroup(cid, gid) {
       <div class="d-section"><h4>Titulares · máx. 30 car.</h4><div class="hl-list">${(g.headlines || []).map(x => metered(x, 30)).join('')}</div></div>
       ${(g.long_headlines || []).length ? `<div class="d-section"><h4>Titulares largos · máx. 90 car.</h4><div class="hl-list">${g.long_headlines.map(x => metered(x, 90)).join('')}</div></div>` : ''}
       <div class="d-section"><h4>Descripciones · máx. 90 car.</h4><div class="hl-list">${(g.descriptions || []).map(x => metered(x, 90)).join('')}</div></div>
+      <div class="d-section"><h4>🎬 Gestionar vídeos</h4>
+        <p class="plan-meta" style="margin:.1rem 0 .5rem">Pega la URL de cualquier vídeo de tu canal y se añade — si no está en la cuenta, se crea solo.</p>
+        <div style="display:flex;gap:6px;margin-bottom:.6rem">
+          <input id="yt-url" type="text" placeholder="https://www.youtube.com/watch?v=..." style="flex:1;padding:7px 10px;border:1px solid var(--hairline);border-radius:8px;font-size:12px">
+          <button class="row-view" id="yt-add" data-group="${g.id}">Añadir</button>
+        </div>
+        <div id="yt-box" data-group="${g.id}"><p class="plan-meta">Cargando vídeos de la cuenta…</p></div>
+      </div>
       <p class="plan-meta" style="margin-top:10px">PMax no tiene keywords ni un anuncio fijo: Google combina estos recursos según el canal (Búsqueda, YouTube, Discover, Gmail, Display). Tampoco expone términos de búsqueda. La marca está excluida a propósito para que no canibalice a Discovery.</p>`);
+    cargarVideos(g.id);
     return;
   }
   openDrawer(`
