@@ -736,6 +736,12 @@ def _action_key(a: dict) -> str:
     # (bajar y volver a subir): la fecha evita que se lea como "ya aplicada"
     if a.get("auto_scale_day"):
         campos["auto_scale_day"] = a["auto_scale_day"]
+    # Los ajustes de dinero son REVERSIBLES por naturaleza: volver a un valor
+    # anterior es una decisión nueva, no una repetición. Sin el día en la clave,
+    # revertir es imposible — el 18-ago la vuelta de Discovery a $186 se rechazó
+    # como "ya estaba aplicada" porque ese importe se había usado dos días antes.
+    elif a.get("tipo") in ("ajustar_presupuesto", "ajustar_puja_grupo", "ajustar_tope_cpc"):
+        campos["dia"] = _account_today().isoformat()
     base = json.dumps(campos, sort_keys=True, ensure_ascii=False)
     return hashlib.md5(base.encode()).hexdigest()[:12]
 
