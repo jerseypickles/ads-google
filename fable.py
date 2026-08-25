@@ -673,13 +673,27 @@ def _live_deep_data() -> dict:
         if alog.exists():
             fuentes += [e for e in json.loads(alog.read_text(encoding="utf-8")) if e.get("ok")]
         fuentes += [e for e in mongo.all_docs("actions", limit=200) if e.get("ok")]
+        # COMPACTO Y ACOTADO. Antes se enviaba el historial ENTERO con el texto
+        # completo de cada motivo: 102.744 caracteres, el 77% de los datos del
+        # prompt y ~29.000 tokens en CADA llamada (~$30/mes sólo por releer lo ya
+        # hecho), creciendo sin límite conforme se acumulaban acciones.
+        # Para no repetirse basta saber QUÉ se hizo y cuándo, no por qué lo
+        # decidí yo: el motivo se conserva en el log, que es donde se consulta.
+        corte = (_account_today() - timedelta(days=14)).strftime("%Y-%m-%d")
         for e in fuentes:
             k = e.get("key") or f"{e.get('ts')}|{e.get('action')}"
-            if k in _vistas:
+            if k in _vistas or str(e.get("ts", "")) < corte:
                 continue
             _vistas.add(k)
-            acciones_aplicadas.append(
-                {"ts": e.get("ts"), "accion": e.get("action"), "resultado": e.get("msg")})
+            a = e.get("action") or {}
+            acciones_aplicadas.append({
+                "ts": str(e.get("ts"))[:16],
+                "tipo": a.get("tipo"),
+                "campana": a.get("campana"),
+                "objetivo": a.get("objetivo") or a.get("valor"),
+                "auto": bool(e.get("auto")),
+            })
+        acciones_aplicadas = acciones_aplicadas[-150:]
 
         # productos de shopping (7 días): la unidad de decisión del árbol
         productos = {}
