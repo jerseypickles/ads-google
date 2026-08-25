@@ -305,7 +305,19 @@ def push_search(camp: dict, store: dict) -> str:
     )
     c.advertising_channel_type = enums.AdvertisingChannelTypeEnum.SEARCH
     c.campaign_budget = budget_rn
-    c.target_spend.cpc_bid_ceiling_micros = CPC_CEILING_MICROS  # Maximizar clics + tope
+    # Una campaña recién nacida no tiene historial con el que pujar por valor, así
+    # que Maximizar clics + tope sigue siendo el arranque correcto. Lo que faltaba
+    # era la SALIDA: nada la graduaba nunca, y campañas ya maduras se quedaban
+    # comprando clics (Winners el 23-ago: CPC $1,15 en concordancia exacta, 0,3x).
+    # El plan puede pedir otra cosa; si no, se arranca barato y se gradúa con
+    # cambiar_estrategia_puja cuando haya ≥15 conversiones en 30 días.
+    troas_pct = camp.get("target_roas_pct")
+    if troas_pct:
+        c.maximize_conversion_value.target_roas = float(troas_pct) / 100.0
+    else:
+        techo = float(camp.get("cpc_ceiling_usd") or 0)
+        c.target_spend.cpc_bid_ceiling_micros = (
+            int(techo * 1_000_000) if techo else CPC_CEILING_MICROS)
     c.network_settings.target_google_search = True
     c.network_settings.target_search_network = False
     c.network_settings.target_content_network = False

@@ -1010,9 +1010,10 @@ Responde SOLO con JSON válido (sin markdown):
   "resumen": "2-3 frases con la foto general",
   "por_campana": [{{"name": "nombre exacto", "salud": "ok|atencion|critico", "notas": ["nota corta", "..."]}}],
   "recomendaciones": ["consejo general 1", "..."],
-  "acciones_propuestas": [{{"tipo": "pausar_keyword|reactivar_keyword|añadir_negativa|ajustar_presupuesto|ajustar_tope_cpc|crear_keyword|ajustar_puja_grupo|excluir_producto_shopping|mover_producto_grupo|optimizar_titulo_feed",
+  "acciones_propuestas": [{{"tipo": "pausar_keyword|reactivar_keyword|añadir_negativa|ajustar_presupuesto|ajustar_tope_cpc|cambiar_estrategia_puja|crear_keyword|ajustar_puja_grupo|excluir_producto_shopping|mover_producto_grupo|optimizar_titulo_feed",
     "campana": "nombre EXACTO de la campaña", "objetivo": "keyword, término, nombre de grupo o item_id según el tipo",
     "valor": 0, "grupo": "solo para crear_keyword: nombre EXACTO del grupo de anuncios",
+    "estrategia": "solo para cambiar_estrategia_puja: MAXIMIZE_CONVERSION_VALUE|TARGET_SPEND",
     "razon": "con los números que lo justifican", "urgencia": "alta|media|baja"}}],
   "lecciones_nuevas": ["APRENDIZAJE DURADERO que valga guardar en tu memoria permanente — patrones, \
 errores a no repetir, verdades del negocio descubiertas en los datos. NO coyunturas del día. \
@@ -1104,8 +1105,8 @@ funnel — sangría sostenida de días, no ruido de horas. El sistema verifica l
 código antes de ejecutar.
 - excluir_producto_shopping: por stock agotado (higiene).
 PROHIBIDO en aprendizaje, sin excepción: ajustar_presupuesto, ajustar_tope_cpc, \
-ajustar_puja_grupo, crear_keyword, mover_producto_grupo — esos SÍ resetean el aprendizaje del \
-algoritmo y esperan al día 7. Todo lo demás que observes, anótalo para el paquete del día 7.
+cambiar_estrategia_puja, ajustar_puja_grupo, crear_keyword, mover_producto_grupo — esos SÍ \
+resetean el aprendizaje del algoritmo y esperan al día 7. Todo lo demás que observes, anótalo para el paquete del día 7.
 
 REGLAS PARA acciones_propuestas (solo con EVIDENCIA en los datos; sin evidencia → lista vacía):
 - pausar_keyword: gastó >$15 con 0 conversiones Y (CTR<1.5% o cero señales de funnel). \
@@ -1126,8 +1127,19 @@ sano y cuota perdida por presupuesto; bajar si gasto completo sin retorno ≥3 d
 PASO según estrategia de puja (el ejecutor lo bloquea si te pasas): campañas MANUAL_CPC \
 (shopping) hasta +100% por paso — no hay algoritmo que resetear; Maximizar clics ±30%; cuando \
 exista tROAS, ±20% máximo y NUNCA junto a un cambio de objetivo. Entre pasos, 3-4 días de lectura.
-- ajustar_tope_cpc (valor=USD): PROHIBIDO en aprendizaje. Después: bajar si el CPC medio lleva \
-≥3 días pegado al ≥90% del tope sin compras.
+- ajustar_tope_cpc (valor=USD): PROHIBIDO en aprendizaje. SOLO en campañas cuya \
+estrategia_puja sea TARGET_SPEND (Maximizar clics): en una campaña de valor/tROAS no existe el \
+tope y el ejecutor lo bloquea. Después: bajar si el CPC medio lleva ≥3 días pegado al ≥90% del \
+tope sin compras.
+- cambiar_estrategia_puja (estrategia=MAXIMIZE_CONVERSION_VALUE con valor=tROAS en % 150-1500, \
+o estrategia=TARGET_SPEND con valor=tope de CPC en USD): PROHIBIDO en aprendizaje. Es la acción \
+MÁS cara de la cuenta — resetea el algoritmo ~2 semanas — así que exige el listón más alto y \
+NUNCA se propone junto a un cambio de presupuesto de la misma campaña. Graduar a \
+MAXIMIZE_CONVERSION_VALUE sólo con ≥15 conversiones en 30 días (el ejecutor lo verifica y \
+bloquea si no) y cuando la campaña esté comprando clics que no venden: Maximizar clics optimiza \
+volumen, así que su síntoma es CPC subiendo con ROAS bajando a la vez. El tROAS de partida se \
+fija por DEBAJO del ROAS real de los últimos 30 días (pedir más de lo que la campaña ya \
+demuestra la ahoga), y nunca se mueve más de ±20% por paso una vez puesta.
 - crear_keyword (objetivo=texto, valor=EXACT|PHRASE, grupo=nombre EXACTO del grupo): solo con \
 demanda demostrada en términos reales (≥3 clics o CTR>5% con gasto) Y producto en catálogo que \
 la respalde. La keyword nueva hereda el flujo: si es EXACT, recuerda proponer su negativa EXACT \

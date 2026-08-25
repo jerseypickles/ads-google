@@ -557,6 +557,7 @@ def _run_review() -> None:
     """
     for etiqueta, paso in (
         ("audiencias", fable_actions.asegurar_audiencias_en_observacion),  # nunca restringir
+        ("log pendiente", _flush_pending_actions),  # un log incompleto ciega el cooldown
         ("caídas", _detectar_caidas),      # un desplome de tráfico es un fallo, no tendencia
         ("reconciliar estado", _reconciliar_estado),  # Google manda, no lo que recordamos
         ("negativas suicidas", _auditar_negativas_suicidas),  # nunca bloquearse a sí mismo
@@ -730,6 +731,31 @@ def _load_actions_log() -> list:
     return sorted(por_key.values(), key=lambda e: str(e.get("ts", "")))
 
 
+_pending_actions: list = []
+
+
+def _flush_pending_actions() -> None:
+    """Reintenta en Mongo las entradas del log que no llegaron a la primera.
+
+    El archivo local NO es duradero en la nube: el contenedor de Render se
+    recrea en cada deploy y se lleva `actions_log.json`. Una entrada que sólo
+    vivió ahí es una entrada perdida, y eso no es cosmético — `_last_touch()`
+    lee este log para el cooldown de 48h del escalado: con entradas ausentes el
+    freno deja de frenar y una campaña puede recibir dos pasos seguidos.
+    """
+    global _pending_actions
+    if not _pending_actions:
+        return
+    quedan = [e for e in _pending_actions if not mongo.save("actions", e)]
+    salvadas = len(_pending_actions) - len(quedan)
+    if salvadas:
+        print(f"[log] {salvadas} entrada(s) pendientes salvadas en Mongo", flush=True)
+    if quedan:
+        print(f"[log] ATENCIÓN: {len(quedan)} entrada(s) del log siguen sin llegar a Mongo "
+              f"— el cooldown del escalado las está ignorando", flush=True)
+    _pending_actions = quedan
+
+
 def _action_key(a: dict) -> str:
     campos = {k: a.get(k) for k in ("tipo", "campana", "objetivo", "valor")}
     # el escalado automático puede repetir un valor con semanas de diferencia
@@ -740,7 +766,8 @@ def _action_key(a: dict) -> str:
     # anterior es una decisión nueva, no una repetición. Sin el día en la clave,
     # revertir es imposible — el 18-ago la vuelta de Discovery a $186 se rechazó
     # como "ya estaba aplicada" porque ese importe se había usado dos días antes.
-    elif a.get("tipo") in ("ajustar_presupuesto", "ajustar_puja_grupo", "ajustar_tope_cpc"):
+    elif a.get("tipo") in ("ajustar_presupuesto", "ajustar_puja_grupo", "ajustar_tope_cpc",
+                           "cambiar_estrategia_puja"):
         campos["dia"] = _account_today().isoformat()
     base = json.dumps(campos, sort_keys=True, ensure_ascii=False)
     return hashlib.md5(base.encode()).hexdigest()[:12]
@@ -888,7 +915,11 @@ def _apply_and_log(a: dict, auto: bool = False) -> dict:
                  ts=time.strftime("%Y-%m-%d %H:%M"), auto=auto)
     log.append(entry)
     ACTIONS_LOG.write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
-    mongo.save("actions", entry)
+    _flush_pending_actions()
+    if not mongo.save("actions", entry):
+        _pending_actions.append(entry)
+        print(f"[log] la entrada '{entry['key']}' ({a.get('tipo')}) no llegó a Mongo "
+              f"— en cola para reintento", flush=True)
     if result["ok"]:
         modo = "auto-aplicada por el piloto Nivel 2" if auto else "aplicada"
         fable.learn(f"Acción {modo} ({a.get('tipo')}): {result['msg']}. Razón: {a.get('razon', '')[:150]}")
@@ -1121,10 +1152,26 @@ def _reconciliar_estado() -> None:
         if camp.get("status") != "LIVE":
             continue          # una PROPUESTA aún no existe en Google
         info = real.get(camp.get("name"))
-        if info is None or camp.get("enabled") is info["enabled"]:
+        if info is None:
             continue
-        cambios.append(f"{camp['name']}: gestor={camp.get('enabled')} → Google={info['enabled']}")
-        camp["enabled"] = info["enabled"]
+        if camp.get("enabled") is not info["enabled"]:
+            cambios.append(f"{camp['name']}: gestor={camp.get('enabled')} → Google={info['enabled']}")
+            camp["enabled"] = info["enabled"]
+
+        # El PRESUPUESTO deriva igual que el estado, y ahí duele más: Fable lee
+        # `daily_budget_usd` del gestor tanto para razonar como para calcular sus
+        # pasos de ±20%. El 18-ago Discovery volvió a $186 en Google sin pasar
+        # por el log y el gestor se quedó en $223: una semana de revisiones
+        # midiendo cuota perdida contra un presupuesto que no existía, y una
+        # propuesta de $267 que el ejecutor iba a rechazar por pasarse del ±30%
+        # sobre el importe real. Google manda también en los números.
+        try:
+            antes = float(camp.get("daily_budget_usd") or 0)
+        except (TypeError, ValueError):
+            antes = 0.0
+        if abs(antes - info["budget"]) >= 0.01:
+            cambios.append(f"{camp['name']}: presupuesto gestor=${antes:.2f} → Google=${info['budget']:.2f}")
+            camp["daily_budget_usd"] = info["budget"]
 
     # IMPORTAR lo que existe en Google y falta aquí. Sin esto, una campaña creada
     # fuera del gestor —por API, o a mano en la interfaz de Google— es invisible

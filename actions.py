@@ -4,7 +4,9 @@ Tipos soportados (Search):
   - pausar_keyword / reactivar_keyword  (objetivo = texto de la keyword)
   - añadir_negativa                     (objetivo = término; a nivel campaña, BROAD)
   - ajustar_presupuesto                 (valor = USD/día, límites 5-300)
-  - ajustar_tope_cpc                    (valor = USD, límites 0.30-5.00)
+  - ajustar_tope_cpc                    (valor = USD, límites 0.30-5.00; sólo en TARGET_SPEND)
+  - cambiar_estrategia_puja             (estrategia = MAXIMIZE_CONVERSION_VALUE|TARGET_SPEND,
+                                         valor = tROAS en % o tope de CPC en USD)
   - crear_keyword                       (objetivo = texto, valor = EXACT|PHRASE, grupo = nombre)
 
 Tipos soportados (Shopping):
@@ -274,6 +276,41 @@ def producto_30d_stats(item_id: str):
         return None
 
 
+def campana_30d_stats(ga, campaign_id: int) -> dict:
+    """Estrategia de puja actual + rendimiento de 30 días de una campaña.
+
+    Cambiar de estrategia resetea el aprendizaje, así que la decisión se toma
+    con la ventana larga y se guarda como línea base: sin un 'antes' escrito no
+    hay forma honesta de juzgar el 'después' dos semanas más tarde.
+    """
+    out = dict(estrategia="", troas=0.0, techo=0.0, budget=0.0,
+               coste=0.0, conversiones=0.0, valor=0.0)
+
+    # Config SIN segmento de fecha: una campaña sin actividad en la ventana no
+    # devuelve ni una fila segmentada, y entonces no sabríamos ni su estrategia.
+    cfg = f"""SELECT campaign.bidding_strategy_type,
+                     campaign.maximize_conversion_value.target_roas,
+                     campaign.target_spend.cpc_bid_ceiling_micros,
+                     campaign_budget.amount_micros
+              FROM campaign WHERE campaign.id = {campaign_id}"""
+    for b in ga.search_stream(customer_id=CUSTOMER_ID, query=cfg):
+        for r in b.results:
+            out["estrategia"] = r.campaign.bidding_strategy_type.name
+            out["troas"] = r.campaign.maximize_conversion_value.target_roas
+            out["techo"] = r.campaign.target_spend.cpc_bid_ceiling_micros / 1e6
+            out["budget"] = r.campaign_budget.amount_micros / 1e6
+
+    met = f"""SELECT metrics.cost_micros, metrics.conversions, metrics.conversions_value
+              FROM campaign
+              WHERE campaign.id = {campaign_id} AND segments.date DURING LAST_30_DAYS"""
+    for b in ga.search_stream(customer_id=CUSTOMER_ID, query=met):
+        for r in b.results:
+            out["coste"] += r.metrics.cost_micros / 1e6
+            out["conversiones"] += r.metrics.conversions
+            out["valor"] += r.metrics.conversions_value
+    return out
+
+
 def apply_action(a: dict) -> dict:
     tipo = a.get("tipo")
     campana = a.get("campana", "")
@@ -459,6 +496,17 @@ def apply_action(a: dict) -> dict:
             v = float(valor)
             if not 0.30 <= v <= 5.00:
                 return dict(ok=False, msg=f"tope CPC ${v} fuera de límites (0.30-5.00)")
+            # MINA: `target_spend` es un miembro del oneof de estrategia de puja.
+            # Escribirlo en una campaña que va por valor/tROAS no le pone un tope:
+            # la DEGRADA a Maximizar clics y le resetea el aprendizaje, en silencio
+            # y con un mensaje de éxito. Un tope de CPC sólo tiene sentido donde ya
+            # existe; cambiar de estrategia es otra acción, deliberada y registrada.
+            est = campana_30d_stats(ga, camp.id)["estrategia"]
+            if est != "TARGET_SPEND":
+                return dict(ok=False, msg=(
+                    f"BLOQUEADO: '{campana}' usa {est}, que no tiene tope de CPC. "
+                    f"Aplicarlo la degradaría a Maximizar clics — usa "
+                    f"cambiar_estrategia_puja si eso es lo que quieres."))
             svc = client.get_service("CampaignService")
             op = client.get_type("CampaignOperation")
             op.update.resource_name = camp.resource_name
@@ -467,6 +515,95 @@ def apply_action(a: dict) -> dict:
                              field_mask_pb2.FieldMask(paths=["target_spend.cpc_bid_ceiling_micros"]))
             svc.mutate_campaigns(customer_id=CUSTOMER_ID, operations=[op])
             return dict(ok=True, msg=f"tope de CPC de {campana} → ${v}")
+
+        if tipo == "cambiar_estrategia_puja":
+            # Hasta ahora esto NO existía: `push_campaign.py` crea toda campaña de
+            # Search en Maximizar clics y nada la graduaba nunca. Winners llegó al
+            # 23-ago comprando clics a $1,15 en concordancia exacta y devolviendo
+            # 0,3x. Graduar a valor era trabajo manual en la interfaz, y encima
+            # había que acordarse de anotar el cambio en `strategy_changes` para
+            # que el escalado no amplificara el ruido del reaprendizaje.
+            destino = str(a.get("estrategia") or "MAXIMIZE_CONVERSION_VALUE").strip().upper()
+            if destino not in ("MAXIMIZE_CONVERSION_VALUE", "TARGET_SPEND"):
+                return dict(ok=False, msg=(
+                    f"estrategia '{destino}' no soportada "
+                    f"(MAXIMIZE_CONVERSION_VALUE | TARGET_SPEND)"))
+            est = campana_30d_stats(ga, camp.id)
+            actual = est["estrategia"]
+            if actual == "MANUAL_CPC":
+                return dict(ok=False, msg=(
+                    "'{}' va en CPC manual (Shopping): su puja se toca por grupo "
+                    "con ajustar_puja_grupo, no cambiando la estrategia.".format(campana)))
+            svc = client.get_service("CampaignService")
+            op = client.get_type("CampaignOperation")
+            op.update.resource_name = camp.resource_name
+
+            if destino == "MAXIMIZE_CONVERSION_VALUE":
+                troas = float(valor or 0) / 100.0          # se pasa en %, se guarda en ratio
+                if not 1.5 <= troas <= 15.0:
+                    return dict(ok=False, msg=(
+                        f"tROAS {troas*100:.0f}% fuera de límites (150%-1500%): por debajo "
+                        f"compras pérdidas, por encima la campaña deja de gastar"))
+                # Sin historial, el algoritmo de valor no tiene con qué predecir y
+                # la campaña se ahoga. El mínimo que Google pide para pujar por
+                # valor son ~15 conversiones en 30 días: aquí se verifica, no se
+                # confía en que quien propone el cambio lo haya mirado.
+                if est["conversiones"] < 15:
+                    return dict(ok=False, msg=(
+                        f"BLOQUEADO: '{campana}' lleva {est['conversiones']:.0f} conversiones "
+                        f"en 30 días y pujar por valor necesita ≥15 — se ahogaría al reaprender"))
+                if actual == "MAXIMIZE_CONVERSION_VALUE" and abs(est["troas"] - troas) < 0.005:
+                    return dict(ok=True, msg=f"'{campana}' ya estaba en tROAS {troas*100:.0f}%")
+                op.update.maximize_conversion_value.target_roas = troas
+                client.copy_from(op.update_mask, field_mask_pb2.FieldMask(
+                    paths=["maximize_conversion_value.target_roas"]))
+                nuevo_txt = f"MAXIMIZE_CONVERSION_VALUE (tROAS {troas*100:.0f}%)"
+            else:
+                techo = float(valor or 0)
+                if not 0.30 <= techo <= 5.00:
+                    return dict(ok=False, msg=f"tope CPC ${techo} fuera de límites (0.30-5.00)")
+                if actual == "TARGET_SPEND" and abs(est["techo"] - techo) < 0.005:
+                    return dict(ok=True, msg=f"'{campana}' ya estaba en Maximizar clics tope ${techo}")
+                op.update.target_spend.cpc_bid_ceiling_micros = int(techo * 1_000_000)
+                client.copy_from(op.update_mask, field_mask_pb2.FieldMask(
+                    paths=["target_spend.cpc_bid_ceiling_micros"]))
+                nuevo_txt = f"TARGET_SPEND (Maximizar clics, tope ${techo:.2f})"
+
+            if actual == "TARGET_SPEND":
+                viejo_txt = f"TARGET_SPEND (Maximizar clics, tope ${est['techo']:.2f})"
+            elif actual == "MAXIMIZE_CONVERSION_VALUE":
+                viejo_txt = f"MAXIMIZE_CONVERSION_VALUE (tROAS {est['troas']*100:.0f}%)"
+            else:
+                viejo_txt = actual
+
+            svc.mutate_campaigns(customer_id=CUSTOMER_ID, operations=[op])
+
+            # El registro NO es documentación: `_autoscale()` lee esta colección
+            # para no escalar durante las ~2 semanas de reaprendizaje. Hasta hoy
+            # se leía y no la escribía nadie — el freno dependía de que el dueño
+            # se acordara de insertar el documento a mano.
+            try:
+                import db
+                roas30 = round(est["valor"] / est["coste"], 2) if est["coste"] else 0
+                db.save("strategy_changes", {
+                    "campaign": campana,
+                    "from": viejo_txt,
+                    "to": nuevo_txt,
+                    "budget_at_change": est["budget"],
+                    "baseline_30d": {
+                        "coste": round(est["coste"], 2),
+                        "conversiones": round(est["conversiones"], 1),
+                        "valor": round(est["valor"], 2),
+                        "roas": roas30,
+                    },
+                    "motivo": (a.get("razon") or "")[:400],
+                })
+            except Exception as exc:
+                print(f"[actions] estrategia cambiada pero sin registrar: {exc}", flush=True)
+
+            return dict(ok=True, msg=(
+                f"estrategia de {campana}: {viejo_txt} → {nuevo_txt} "
+                f"(reaprendizaje ~2 semanas; el escalado se abstiene mientras)"))
 
         if tipo == "crear_keyword":
             match = (str(valor) or "PHRASE").strip().upper()
