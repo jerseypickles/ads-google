@@ -1239,6 +1239,7 @@ def _reconciliar_estado() -> None:
             "enabled": info["enabled"],
             "type": info["tipo"],
             "local": nombre in locales,
+            "imported": True,   # se refresca desde Google: no tiene plan que preservar
             "daily_budget_usd": info["budget"],
             "google": {"campaign_id": info["id"]},
             "objective": "Importada desde Google Ads: se creó fuera del gestor.",
@@ -1302,6 +1303,71 @@ def _reconciliar_estado() -> None:
                 camp["ad_groups"] = grupos
                 camp["products"] = "todos los del feed"
                 cambios.append(f"{camp['name']}: {len(grupos)} grupo(s) de recursos sincronizados")
+
+    # Lo mismo para las de BÚSQUEDA importadas. El bloque de importación las mete
+    # con `ad_groups: []` y sólo PMax tenía quien se los rellenara después, así
+    # que una campaña creada fuera del gestor se veía por dentro vacía: cero
+    # grupos, cero keywords, cero creatividades. Fable lo denunció el 25-ago en
+    # Competencia ("ad_groups vacíos pese a tener grupos con gasto") y seguía
+    # igual. Se refrescan las importadas y se rellenan las que estén vacías; las
+    # que vienen de un plan conservan su `rationale`, que no está en Google.
+    search_sync = [c for c in store.get("campaigns", [])
+                   if c.get("status") == "LIVE"
+                   and c.get("type") not in ("PERFORMANCE_MAX", "SHOPPING")
+                   and (c.get("imported") or not c.get("ad_groups"))]
+    if search_sync:
+        nombres = {c["name"] for c in search_sync}
+        grupos: dict = {}
+        try:
+            for b in ga.search_stream(customer_id="4888823590", query="""
+                    SELECT campaign.name, ad_group.id, ad_group.name
+                    FROM ad_group WHERE ad_group.status != 'REMOVED'
+                      AND campaign.status IN ('ENABLED', 'PAUSED')"""):
+                for r in b.results:
+                    if r.campaign.name in nombres:
+                        grupos.setdefault(r.campaign.name, {})[r.ad_group.id] = {
+                            "id": f"g{r.ad_group.id}", "name": r.ad_group.name,
+                            "keywords": [], "headlines": [], "descriptions": []}
+            for b in ga.search_stream(customer_id="4888823590", query="""
+                    SELECT campaign.name, ad_group.id, ad_group_criterion.keyword.text,
+                           ad_group_criterion.keyword.match_type, ad_group_criterion.status
+                    FROM ad_group_criterion
+                    WHERE ad_group_criterion.type = 'KEYWORD'
+                      AND ad_group_criterion.negative = FALSE
+                      AND ad_group_criterion.status != 'REMOVED'
+                      AND campaign.status IN ('ENABLED', 'PAUSED')"""):
+                for r in b.results:
+                    g = (grupos.get(r.campaign.name) or {}).get(r.ad_group.id)
+                    if g is not None:
+                        g["keywords"].append({
+                            "text": r.ad_group_criterion.keyword.text,
+                            "match": r.ad_group_criterion.keyword.match_type.name,
+                            "paused": r.ad_group_criterion.status.name == "PAUSED"})
+            for b in ga.search_stream(customer_id="4888823590", query="""
+                    SELECT campaign.name, ad_group.id,
+                           ad_group_ad.ad.responsive_search_ad.headlines,
+                           ad_group_ad.ad.responsive_search_ad.descriptions
+                    FROM ad_group_ad WHERE ad_group_ad.status != 'REMOVED'
+                      AND campaign.status IN ('ENABLED', 'PAUSED')"""):
+                for r in b.results:
+                    g = (grupos.get(r.campaign.name) or {}).get(r.ad_group.id)
+                    if g is None:
+                        continue
+                    rsa = r.ad_group_ad.ad.responsive_search_ad
+                    for h in rsa.headlines:
+                        if h.text and h.text not in g["headlines"]:
+                            g["headlines"].append(h.text)
+                    for d in rsa.descriptions:
+                        if d.text and d.text not in g["descriptions"]:
+                            g["descriptions"].append(d.text)
+            for camp in search_sync:
+                nuevos = list((grupos.get(camp["name"]) or {}).values())
+                if nuevos and camp.get("ad_groups") != nuevos:
+                    camp["ad_groups"] = nuevos
+                    kws = sum(len(g["keywords"]) for g in nuevos)
+                    cambios.append(f"{camp['name']}: {len(nuevos)} grupo(s) y {kws} keywords sincronizados")
+        except Exception as exc:
+            print(f"[reconciliar] no se pudieron sincronizar los grupos de búsqueda: {exc}", flush=True)
 
     if cambios:
         _save_camps(store)
