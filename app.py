@@ -202,6 +202,34 @@ def _fetch_live_metrics(range_key: str = "7d") -> dict:
             _acc(ads, f"{r.campaign.name}|{r.ad_group.name}", r.metrics)
     _fin(camps); _fin(groups); _fin(ads)
 
+    # Señales de TIENDA FÍSICA. Una campaña local no genera conversions_value —
+    # su resultado es que alguien llame o pida cómo llegar— así que sin esto el
+    # panel la mostraría con valor $0 y ROAS 0,00x, que parece un desastre
+    # cuando en realidad es que se está midiendo lo que no es.
+    # `all_conversions` y no `conversions`: las acciones locales del Perfil de
+    # Empresa no son pujables y por tanto NO entran en la métrica de conversión.
+    try:
+        q4 = f"""SELECT campaign.name, segments.conversion_action_category,
+                        metrics.all_conversions FROM campaign
+                 WHERE {rng} AND campaign.status != 'REMOVED'"""
+        LLAMADA = ("PHONE_CALL_LEAD", "CONTACT")
+        for b in ga.search_stream(customer_id="4888823590", query=q4):
+            for r in b.results:
+                cat = r.segments.conversion_action_category.name
+                if cat not in LLAMADA + ("GET_DIRECTIONS",):
+                    continue
+                m = camps.setdefault(r.campaign.name,
+                                     dict(impr=0, clicks=0, cost=0.0, conv=0.0, value=0.0))
+                clave = "calls" if cat in LLAMADA else "directions"
+                m[clave] = round(m.get(clave, 0) + r.metrics.all_conversions, 1)
+        for m in camps.values():
+            m.setdefault("calls", 0)
+            m.setdefault("directions", 0)
+            m["cpl"] = (round(m["cost"] / m["calls"], 2)
+                        if m["calls"] and m.get("cost") else None)
+    except Exception as exc:
+        print(f"[metrics] señales locales no disponibles: {exc}", flush=True)
+
     out = {"campaigns": camps, "groups": groups, "ads": ads}
     _live_cache[cache_key] = {"at": now, "data": out}
     return out
@@ -1146,6 +1174,22 @@ def _reconciliar_estado() -> None:
                 tipo=r.campaign.advertising_channel_type.name,
                 budget=r.campaign_budget.amount_micros / 1e6)
 
+    # Una campaña de TIENDA FÍSICA es SEARCH para Google, así que sin esto el
+    # panel la pinta igual que una de e-commerce y el dueño la juzga por ROAS —
+    # una métrica que ahí no existe: nadie compra online por visitar el local.
+    # La marca lo que de verdad la distingue: tener un radio alrededor de una
+    # dirección en vez de segmentación por país.
+    locales = set()
+    try:
+        for b in ga.search_stream(customer_id="4888823590", query="""
+                SELECT campaign.name FROM campaign_criterion
+                WHERE campaign_criterion.type = 'PROXIMITY'
+                  AND campaign.status IN ('ENABLED', 'PAUSED')"""):
+            for r in b.results:
+                locales.add(r.campaign.name)
+    except Exception as exc:
+        print(f"[reconciliar] no se pudo leer el radio de las campañas: {exc}", flush=True)
+
     store = _load_camps()
     cambios = []
     for camp in store.get("campaigns", []):
@@ -1154,6 +1198,10 @@ def _reconciliar_estado() -> None:
         info = real.get(camp.get("name"))
         if info is None:
             continue
+        es_local = camp["name"] in locales
+        if bool(camp.get("local")) is not es_local:
+            camp["local"] = es_local
+            cambios.append(f"{camp['name']}: local={es_local}")
         if camp.get("enabled") is not info["enabled"]:
             cambios.append(f"{camp['name']}: gestor={camp.get('enabled')} → Google={info['enabled']}")
             camp["enabled"] = info["enabled"]
@@ -1190,6 +1238,7 @@ def _reconciliar_estado() -> None:
             "status": "LIVE",
             "enabled": info["enabled"],
             "type": info["tipo"],
+            "local": nombre in locales,
             "daily_budget_usd": info["budget"],
             "google": {"campaign_id": info["id"]},
             "objective": "Importada desde Google Ads: se creó fuera del gestor.",

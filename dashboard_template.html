@@ -253,10 +253,10 @@
     padding: 10px 18px; border-radius: 9px; cursor: pointer; font-weight: 600;
   }
   .gen-btn.shop { background: var(--shop); }
-  :root { --shop: #7c5cd6; --shop-ink: #6d4fc4; }
-  :root[data-theme="dark"] { --shop: #9d85e8; --shop-ink: #b3a0ef; }
+  :root { --shop: #7c5cd6; --shop-ink: #6d4fc4; --local: #d98324; --local-ink: #a8621a; }
+  :root[data-theme="dark"] { --shop: #9d85e8; --shop-ink: #b3a0ef; --local: #e8a04d; --local-ink: #f0b877; }
   @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"])) { --shop: #9d85e8; --shop-ink: #b3a0ef; }
+    :root:where(:not([data-theme="light"])) { --shop: #9d85e8; --shop-ink: #b3a0ef; --local: #e8a04d; --local-ink: #f0b877; }
   }
   .type-head {
     display: flex; align-items: center; justify-content: space-between; gap: 14px;
@@ -314,6 +314,10 @@
   .mtag-PHRASE { color: var(--s1); background: color-mix(in srgb, var(--s1) 12%, transparent); }
   .mtag-SHOP   { color: var(--shop-ink); background: color-mix(in srgb, var(--shop) 14%, transparent); }
   .mtag-BROAD  { color: var(--muted); background: color-mix(in srgb, var(--muted) 15%, transparent); }
+  .mtag-LOCAL  { color: var(--local-ink); background: color-mix(in srgb, var(--local) 16%, transparent); }
+  /* Una tienda física no tiene ROAS. En vez de un 0,00x rojo que asusta sin
+     motivo, se dice qué se está midiendo de verdad. */
+  .na-local { color: var(--local-ink); font-size: 10px; font-weight: 700; letter-spacing: .04em; cursor: help; }
   .rsa { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .rsa h4 { margin: 0 0 6px; font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
   .rsa ul { margin: 0; padding: 0; list-style: none; font-size: 13px; }
@@ -1129,8 +1133,13 @@ const TIPO_INFO = {
   DISPLAY:         {chip: '🖼 DISPLAY',   clase: 'mtag-PHRASE', sub: 'remarketing'},
 };
 function tipoInfo(c) {
+  // Una campaña de tienda es SEARCH para Google, pero juzgarla con las
+  // expectativas de e-commerce es el error: no vende online, trae gente al local.
+  if (c.local) return {chip: '📍 LOCAL', clase: 'mtag-LOCAL',
+                       sub: 'tienda física · se mide en llamadas y rutas, no en ROAS'};
   return TIPO_INFO[c.type] || {chip: 'SEARCH', clase: 'mtag-PHRASE', sub: c.match_role || ''};
 }
+const esLocal = c => !!c.local;
 
 function isApplied(a) {
   return (MGR.applied || []).some(e => {
@@ -1293,6 +1302,12 @@ function renderManager() {
   const mPct = v => v == null ? '—' : v + '%';
   const mRoas = m => (!m || m.roas == null || !m.value) ? '—' :
     `<b style="color:${m.roas >= 1 ? 'var(--good-text)' : 'var(--critical)'}">${m.roas.toFixed(2)}x</b>`;
+  // Métricas de tienda física: lo que sustituye a Conv./Valor/ROAS.
+  const mLlamadas = m => !m || !m.calls ? '—'
+    : `<b style="color:var(--local-ink)" title="Llamadas desde el anuncio">📞 ${fmt(m.calls)}</b>`;
+  const mRutas = m => !m || !m.directions ? '—'
+    : `<b style="color:var(--local-ink)" title="Pidieron cómo llegar a la tienda en Google Maps">📍 ${fmt(m.directions)}</b>`;
+  const NA_LOCAL = `<span class="na-local" title="Una tienda física no genera valor de conversión: nadie compra online por ir al local. Se mide en llamadas, rutas al mapa y coste por llamada.">n/a · tienda</span>`;
   let html = '<section class="card span-12" style="padding:0;overflow:hidden"><div class="tablewrap"><table class="mgr-table">';
   if (MGR.level === 'camp') {
     html += `<thead><tr><th style="width:52px">Act.</th><th>Campaña</th><th>Estado</th><th>Fable</th><th class="num">Presup./día</th><th class="num">Impr.</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Coste</th><th class="num">Conv.</th><th class="num">Valor</th><th class="num">ROAS</th><th class="num">CPA</th><th></th></tr></thead><tbody>`;
@@ -1317,8 +1332,10 @@ function renderManager() {
         })()}</td>
         <td class="num">$${c.daily_budget_usd}</td>
         <td class="num">${mN(m.impr)}</td><td class="num">${mN(m.clicks)}</td><td class="num">${mPct(m.ctr)}</td>
-        <td class="num">${m$(m.cost)}</td><td class="num">${mN(m.conv)}</td>
-        <td class="num">${m$(m.value)}</td><td class="num">${mRoas(m)}</td><td class="num">${m$(m.cpa)}</td>
+        <td class="num">${m$(m.cost)}</td><td class="num">${esLocal(c) ? mLlamadas(m) : mN(m.conv)}</td>
+        <td class="num">${esLocal(c) ? mRutas(m) : m$(m.value)}</td>
+        <td class="num">${esLocal(c) ? NA_LOCAL : mRoas(m)}</td>
+        <td class="num">${esLocal(c) ? m$(m.cpl) : m$(m.cpa)}</td>
         <td style="white-space:nowrap">${c.status === 'PROPUESTA'
           ? `<button class="row-view" data-launch="${c.id}" style="color:var(--good-text);font-weight:700">🚀 Lanzar</button> <button class="row-view" data-reject="${c.id}">✕</button> <button class="row-view" data-vt="camp" data-vc="${c.id}">Ver</button>`
           : `<button class="row-view" data-vt="camp" data-vc="${c.id}">Ver</button> <button class="row-del" data-del="${c.id}" title="Quitar del gestor">✕</button>`} <span class="drill">›</span></td></tr>`;
@@ -1365,12 +1382,20 @@ function renderManager() {
     cost: a.cost + (m.cost || 0), conv: a.conv + (m.conv || 0), value: a.value + (m.value || 0),
   }), { impr: 0, clicks: 0, cost: 0, conv: 0, value: 0 });
   T.ctr = T.impr ? Math.round(T.clicks / T.impr * 1000) / 10 : null;
-  T.roas = T.cost ? T.value / T.cost : null;
-  T.cpa = T.conv ? T.cost / T.conv : null;
+  // El ROAS de la cuenta se calcula SIN las campañas de tienda: gastan y por
+  // diseño no generan valor de conversión, así que meterlas hunde el número
+  // global y hace parecer un problema lo que es una métrica que no aplica.
+  const costeLocal = MGR.level === 'camp'
+    ? cs.filter(esLocal).reduce((a, c) => a + ((c.metrics || {}).cost || 0), 0) : 0;
+  const costeRoas = T.cost - costeLocal;
+  T.roas = costeRoas > 0 ? T.value / costeRoas : null;
+  T.cpa = T.conv ? costeRoas / T.conv : null;
   const presu = cs.filter(c => c.status === 'LIVE' && c.enabled !== false)
                   .reduce((a, c) => a + (Number(c.daily_budget_usd) || 0), 0);
   const roasBig = T.roas == null ? '—'
-    : `<b style="font-size:15px;color:${T.roas >= 1 ? 'var(--good-text)' : 'var(--critical)'}">${T.roas.toFixed(2)}x</b>`;
+    : `<b style="font-size:15px;color:${T.roas >= 1 ? 'var(--good-text)' : 'var(--critical)'}" ${
+        costeLocal ? `title="Excluye $${costeLocal.toFixed(2)} de campañas de tienda física, que no generan valor de conversión"` : ''
+      }>${T.roas.toFixed(2)}x${costeLocal ? '<span class="na-local" style="font-size:9px"> *</span>' : ''}</b>`;
   const pre = MGR.level === 'camp'
     ? `<td></td><td><b>TOTAL · ${cs.length} campañas</b></td><td></td><td></td><td class="num"><b>$${presu.toFixed(0)}</b></td>`
     : MGR.level === 'group'
@@ -1498,10 +1523,15 @@ function drawerCampaign(c) {
       <div class="d-metric"><div class="v">${mN(m.impr)}</div><div class="l">Impresiones</div></div>
       <div class="d-metric"><div class="v">${mN(m.clicks)}</div><div class="l">Clics</div></div>
       <div class="d-metric"><div class="v">${m$(m.cost)}</div><div class="l">Coste</div></div>
+      ${esLocal(c) ? `
+      <div class="d-metric"><div class="v" style="color:var(--local-ink)">📞 ${mN(m.calls)}</div><div class="l">Llamadas</div></div>
+      <div class="d-metric"><div class="v" style="color:var(--local-ink)">📍 ${mN(m.directions)}</div><div class="l">Cómo llegar</div></div>
+      <div class="d-metric"><div class="v">${m$(m.cpl)}</div><div class="l">Coste por llamada</div></div>
+      <div class="d-metric"><div class="v">${m$(m.cpc)}</div><div class="l">CPC</div></div>` : `
       <div class="d-metric"><div class="v">${mN(m.conv)}</div><div class="l">Conversiones</div></div>
       <div class="d-metric"><div class="v">${m$(m.value)}</div><div class="l">Valor</div></div>
       <div class="d-metric"><div class="v">${m.roas != null && m.value ? m.roas.toFixed(2) + 'x' : '—'}</div><div class="l">ROAS</div></div>
-      <div class="d-metric"><div class="v">${m$(m.cpa)}</div><div class="l">CPA</div></div>
+      <div class="d-metric"><div class="v">${m$(m.cpa)}</div><div class="l">CPA</div></div>`}
     </div>
     ${c.status === 'DRAFT' ? '<p class="plan-meta" style="margin:0 0 4px">Las métricas se llenarán solas cuando la campaña esté en Google Ads.</p>' : ''}
     <p class="note" style="max-width:none">${esc(c.objective || '')}</p>
